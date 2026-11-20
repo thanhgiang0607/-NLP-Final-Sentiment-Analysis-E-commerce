@@ -1,59 +1,89 @@
-# Hướng đi đồ án: Phân tích cảm xúc theo khía cạnh (Aspect-Based Sentiment Analysis) cho bình luận E-commerce tiếng Việt
+# Hướng đi đồ án: Trích xuất ý kiến từ bình luận E-commerce tiếng Việt (Aspect Sentiment Triplet Extraction)
 
 ## 1. Tổng quan
 
 | Mục | Nội dung |
 |---|---|
-| **Bài toán chính** | **ABSA**: với mỗi bình luận, xác định (1) bình luận nói về **khía cạnh** nào và (2) **cảm xúc** đối với từng khía cạnh đó |
-| **Loại bài toán** | Multi-label + multi-class classification (supervised) |
+| **Đề tài** | Sentiment analysis cho bình luận E-commerce tiếng Việt |
+| **Cách đặt bài toán** | **Trích xuất ý kiến** (*opinion mining / Aspect Sentiment Triplet Extraction – ASTE*): với mỗi bình luận, rút ra tất cả các **bộ ba** `(cụm khía cạnh, cụm ý kiến, cảm xúc)` |
+| **Loại bài toán** | **Trích xuất thông tin** (information extraction), học có giám sát: **gán nhãn chuỗi** (sequence labeling) để tìm cụm từ + **trích xuất quan hệ** (relation extraction) để nối khía cạnh với ý kiến. *Không* phải phân lớp câu |
 | **Ngôn ngữ dữ liệu** | Tiếng Việt |
-| **Nguồn dữ liệu** | Tiki (chính, có API JSON), Shopee / Lazada (bổ sung) |
-| **Đầu ra cuối** | Web app: nhập bình luận hoặc link sản phẩm → cảm xúc theo từng khía cạnh + thống kê điểm mạnh/yếu của sản phẩm |
+| **Nguồn dữ liệu** | Tiki (crawl & scrape qua API JSON) |
+| **Đầu ra cuối** | Web app: nhập bình luận → **bôi màu** khía cạnh và ý kiến ngay trên câu + danh sách bộ ba; dán link sản phẩm → **"Top điều được khen / bị chê"** |
 
 **Ví dụ:**
 
-> *"Hàng đẹp, vải mát nhưng giao chậm quá, shipper còn thái độ. Giá thì ok."*
+> *"Áo đẹp nhưng chất vải thì mỏng quá, shop tư vấn nhiệt tình. Giao hơi lâu."*
 
-| Khía cạnh | Cảm xúc |
-|---|---|
-| Chất lượng sản phẩm | Tích cực |
-| Giao hàng | Tiêu cực |
-| Giá cả | Tích cực |
-| Đóng gói, Dịch vụ shop, Đúng mô tả, Tổng quan | *(không đề cập)* |
+| Cụm khía cạnh | Cụm ý kiến | Cảm xúc |
+|---|---|---|
+| áo | đẹp | Tích cực |
+| chất vải | mỏng quá | Tiêu cực |
+| shop | tư vấn nhiệt tình | Tích cực |
+| giao | hơi lâu | Tiêu cực |
 
-Lý do chọn ABSA thay vì phân loại cảm xúc cả câu: một bình luận thường **vừa khen vừa chê**. Rating 3–4 sao rất khó phân loại nếu chỉ gán một nhãn cho cả câu. ABSA cho kết quả có giá trị thực tế hơn với người bán (biết cụ thể phải cải thiện khâu nào).
+**Vì sao trích xuất thay vì phân lớp:**
+
+| | Phân lớp (gán nhãn cho cả câu / từng khía cạnh cố định) | **Trích xuất ý kiến (đề tài này)** |
+|---|---|---|
+| Kết quả | "Chất lượng: Tiêu cực" | **"chất vải – mỏng quá – Tiêu cực"**: biết chính xác chê **cái gì**, chê **thế nào** |
+| Danh sách khía cạnh | Phải định nghĩa trước (7 loại cố định) | **Mở**: khía cạnh nào xuất hiện trong câu thì rút ra cái đó ("pin", "đường may", "mùi hương"...) |
+| Câu vừa khen vừa chê | Phải gộp thành 1 nhãn mỗi khía cạnh | Mỗi ý kiến là 1 bộ ba riêng |
+| Giá trị cho người bán | Biết khâu nào kém | Biết **cụ thể** cần sửa gì, có bằng chứng (cụm từ gốc) |
+| Quan hệ xa trong câu | Không xử lý | **Bắt được**: "chất vải ... thì ... mỏng quá" (khía cạnh và ý kiến cách nhau nhiều từ) |
 
 ### Đối chiếu yêu cầu đồ án
 
 | Yêu cầu | Cách đáp ứng | Mục |
 |---|---|---|
-| Gán nhãn thủ công bằng Label Studio | Gán nhãn khía cạnh + cảm xúc cho **~6.000 bình luận** trong 2 đợt (đợt 2 có active learning), đo Cohen's Kappa | §5 |
+| Gán nhãn thủ công bằng Label Studio | Bôi đen cụm khía cạnh / ý kiến và **nối quan hệ** cho **~3.000 bình luận** trong 2 đợt (đợt 2 có active learning); đo độ đồng thuận (F1 giữa người gán, Kappa theo từ) | §5 |
 | Dữ liệu tiếng Việt | Crawl & scrape review từ Tiki qua API JSON nội bộ | §3 |
-| ≥ 3 mô hình ML truyền thống | Naive Bayes, Logistic Regression, Linear SVM (+ Random Forest / XGBoost), mỗi mô hình huấn luyện theo từng khía cạnh | §7.2 |
-| ≥ 1 mô hình Deep Learning | ViSoBERT & PhoBERT multi-task (chính, so sánh trực tiếp) + BiLSTM/TextCNN | §7.3 |
+| IRE: *luật hoặc gán nhãn rồi đưa về học có giám sát* | Làm **cả hai**: baseline luật (mẫu từ loại + từ điển) và các mô hình học có giám sát | §7 |
+| ≥ 3 mô hình ML truyền thống | **CRF** (tìm cụm từ) + **Logistic Regression, Linear SVM, Random Forest** (nối khía cạnh – ý kiến) | §7.2 |
+| ≥ 1 mô hình Deep Learning | **ViSoBERT & PhoBERT** (tìm cụm từ + nối quan hệ) + **BiLSTM-CRF** | §7.3 |
 | Quy trình data science đầy đủ | Crawl & scrape → EDA → Tiền xử lý → Gán nhãn → Huấn luyện → Đánh giá → Ứng dụng | §3–§9 |
-| Ứng dụng đơn giản | Web app Streamlit (có chức năng giải thích dự đoán) | §9 |
-| *(Bổ sung)* Giải thích mô hình | LIME / SHAP cho cả ML và transformer, tích hợp vào app | §8.2 |
+| Ứng dụng đơn giản | Web app Streamlit: bôi màu ý kiến, bảng bộ ba, giải thích, dashboard sản phẩm | §9 |
+| *(Bổ sung)* Gom nhóm & đặt tên chủ đề | Phân cụm các cụm khía cạnh đã trích xuất ("vải", "chất vải", "chất liệu" → chủ đề *Chất liệu*) | §7.5 |
+| *(Bổ sung)* Giải thích mô hình | Trọng số CRF, hệ số LR/SVM, LIME/SHAP cho bộ nối quan hệ | §8.2 |
 
 ---
 
-## 2. Định nghĩa khía cạnh (Aspect Schema)
+## 2. Định nghĩa nhãn (Annotation Schema)
 
-Các khía cạnh được chọn để **dùng chung cho mọi ngành hàng** (không phụ thuộc loại sản phẩm):
+### 2.1. Ba thành phần của một bộ ba
 
-| Mã | Khía cạnh | Bao gồm | Ví dụ từ khoá |
-|---|---|---|---|
-| `QUALITY` | Chất lượng sản phẩm | Chất liệu, độ bền, hiệu năng, công dụng, mùi vị | *vải, bền, xài, mượt, pin, thơm, hỏng* |
-| `PRICE` | Giá cả | Giá, khuyến mãi, đáng tiền | *giá, rẻ, đắt, sale, đáng tiền, voucher* |
-| `DELIVERY` | Giao hàng | Tốc độ, shipper, phí ship | *giao, ship, nhanh, chậm, shipper* |
-| `PACKAGING` | Đóng gói | Hộp, bọc chống sốc, tình trạng khi nhận | *đóng gói, hộp, móp, bọc, cẩn thận* |
-| `SERVICE` | Dịch vụ shop | Tư vấn, phản hồi, đổi trả, bảo hành | *shop, tư vấn, nhiệt tình, đổi trả, rep* |
-| `AUTHENTICITY` | Đúng mô tả / chính hãng | Giống hình, đúng size/màu, hàng thật/giả | *giống hình, đúng mô tả, fake, chính hãng, size* |
-| `GENERAL` | Tổng quan | Nhận xét chung không gắn khía cạnh cụ thể | *ok, tốt, hài lòng, sẽ ủng hộ, thất vọng* |
+| Thành phần | Là gì | Ví dụ |
+|---|---|---|
+| **Cụm khía cạnh** (aspect term) | Danh từ / cụm danh từ chỉ **đối tượng được nhận xét**: sản phẩm, bộ phận, đặc tính, dịch vụ | *áo, chất vải, pin, màn hình, mùi, giá, shop, shipper, giao hàng, hộp* |
+| **Cụm ý kiến** (opinion term) | Từ / cụm từ **thể hiện đánh giá**, gồm cả từ phủ định và từ chỉ mức độ đi kèm | *đẹp, mỏng quá, không bền, hơi lâu, rất nhiệt tình, đáng tiền* |
+| **Cảm xúc** (polarity) | Gắn vào cụm ý kiến | `Tích cực` · `Trung lập` · `Tiêu cực` |
 
-Mỗi khía cạnh nhận **1 trong 4 giá trị**: `None` (không đề cập) · `Tích cực` · `Trung lập` · `Tiêu cực`.
+### 2.2. Nhãn trong Label Studio
 
-> Có thể điều chỉnh schema sau đợt gán nhãn thử (pilot ~200 mẫu): gộp khía cạnh quá hiếm, tách khía cạnh quá rộng.
+| Nhãn cụm từ | Ý nghĩa | Màu |
+|---|---|---|
+| `ASPECT` | Cụm khía cạnh | Xanh dương |
+| `OP_POS` | Cụm ý kiến tích cực | Xanh lá |
+| `OP_NEU` | Cụm ý kiến trung lập | Vàng |
+| `OP_NEG` | Cụm ý kiến tiêu cực | Đỏ |
+
+**Quan hệ:** kéo mũi tên nối `ASPECT` → cụm ý kiến nói về nó. Mỗi quan hệ tạo thành **1 bộ ba**.
+
+### 2.3. Các trường hợp đặc biệt
+
+| Trường hợp | Ví dụ | Cách gán |
+|---|---|---|
+| **Khía cạnh ẩn** (không nói rõ khen cái gì) | *"Đẹp lắm, sẽ ủng hộ tiếp"* | Bôi `đẹp lắm` là `OP_POS`, **không nối** → bộ ba `(∅, đẹp lắm, Tích cực)` |
+| **1 ý kiến cho nhiều khía cạnh** | *"Áo và quần đều đẹp"* | Nối `áo` → `đẹp` và `quần` → `đẹp` (2 bộ ba) |
+| **1 khía cạnh nhiều ý kiến** | *"Vải mỏng, nhăn"* | Nối `vải` → `mỏng` và `vải` → `nhăn` |
+| **Khía cạnh và ý kiến ở xa nhau** | *"**Chất vải** của cái áo mình mua lần này thì **mỏng quá**"* | Vẫn nối bình thường. Đây là trường hợp mô hình khó nhất, được đánh giá riêng (§8.1) |
+| **Phủ định** | *"không bền"*, *"chẳng giống hình"* | Từ phủ định **nằm trong** cụm ý kiến; cảm xúc theo nghĩa cả cụm |
+| **Mỉa mai** | *"Giao nhanh thật, 2 tuần mới tới"* | `giao` → `nhanh thật` là `OP_NEG` (theo ý thật) |
+| **Câu hỏi, mong muốn** | *"Có màu đen không shop?"*, *"Mong shop giao nhanh hơn"* | Không bôi (chưa phải đánh giá) |
+| **Mô tả khách quan** | *"Áo màu xanh, size M"* | Không bôi |
+| **Spam / vô nghĩa** | *"AE vào nhóm săn sale..."* | Tích ô **Spam** |
+
+> Có thể điều chỉnh sau đợt gán thử (pilot ~100 câu). Chi tiết ghi trong `labeling/guideline.md`.
 
 ---
 
@@ -145,9 +175,9 @@ Với mỗi ngành hàng (6 ngành mặc định)
 ### 3.5. Phạm vi & mục tiêu
 - 6 ngành hàng mặc định: điện thoại, làm đẹp, nhà cửa, điện gia dụng, thời trang nữ, bách hóa. Có thể thêm laptop, thời trang nam, sách nếu thiếu dữ liệu.
 - Mục tiêu: **~60.000–80.000 review thô** (~150 sản phẩm × 6 ngành hàng, tối đa 300 review/sản phẩm) → còn **~15.000–20.000 bình luận ≥ 10 từ**.
-  - Khoảng 6.000 bình luận được gán nhãn (§5).
-  - Phần còn lại (~10.000–14.000) là **kho chưa gán nhãn**, dùng để active learning chọn mẫu và làm dữ liệu demo cho dashboard.
-- **Ưu tiên bình luận dài** (≥ 10 từ) khi chọn mẫu gán nhãn vì bình luận ngắn ("ok", "tốt") hầu như chỉ có `GENERAL`.
+  - Khoảng 3.000 bình luận được gán nhãn (§5).
+  - Phần còn lại (~12.000–17.000) là **kho chưa gán nhãn**, dùng để active learning chọn mẫu, gom nhóm khía cạnh (§7.5) và làm dữ liệu demo cho dashboard.
+- **Ưu tiên bình luận 10–80 từ** khi chọn mẫu gán nhãn: bình luận quá ngắn ("ok", "tốt") hầu như không có cụm khía cạnh; bình luận quá dài làm việc bôi cụm từ rất lâu.
 
 ### 3.6. Kết quả chạy thử (215 review, 8 sản phẩm, 3 ngành hàng)
 
@@ -157,7 +187,7 @@ Với mỗi ngành hàng (6 ngành mặc định)
 | Review có ≥ 10 từ | ~25% | Đây là tỉ lệ dùng để tính số review thô cần crawl |
 | Rating 5 sao | ~87% (1–2 sao chỉ ~4%) | Khi chọn mẫu gán nhãn phải lấy thêm câu 1–3 sao |
 | Spam ("AE qua nhóm mình săn sale...") và tên người trong nội dung | Có xuất hiện | Lọc spam và ẩn tên ở bước tiền xử lý (§6) |
-| Trường `delivery_rating` có sẵn (giao đúng hẹn, thái độ shipper, đóng gói) | ~25% review | Dùng cho EDA và đối chiếu với nhãn `DELIVERY` / `PACKAGING` |
+| Trường `delivery_rating` có sẵn (giao đúng hẹn, thái độ shipper, đóng gói) | ~25% review | Dùng cho EDA và đối chiếu với các bộ ba về giao hàng / đóng gói |
 | Tốc độ | ~1 request/giây, 20 review/request | 60.000–80.000 review ≈ **1,5–2 giờ** chạy máy, nên chạy qua đêm |
 
 ### 3.7. Cách chạy
@@ -200,19 +230,20 @@ python3 src/crawler/tiki_crawler.py --export-csv
 
 **Trên dữ liệu thô:**
 - Phân bố rating 1–5 (thường lệch mạnh về 5 sao).
-- Phân bố độ dài bình luận; tỉ lệ bình luận rỗng/quá ngắn; trùng lặp, spam.
+- Phân bố độ dài bình luận; tỉ lệ bình luận rỗng / quá ngắn; trùng lặp, spam.
 - Phân bố theo ngành hàng và thời gian.
 - Top n-gram, word cloud theo nhóm rating; tần suất emoji, teencode.
+- **Top danh từ và tính từ** (dùng POS tagging): gợi ý từ cho từ điển khía cạnh / ý kiến (`labeling/lexicon.json`).
 
-**Sau khi gán nhãn (EDA cho ABSA):**
-- Tần suất xuất hiện mỗi khía cạnh → phát hiện khía cạnh hiếm.
-- Phân bố cảm xúc trong từng khía cạnh (ví dụ `DELIVERY` thường lệch tiêu cực, `GENERAL` lệch tích cực).
-- Số khía cạnh trung bình trên mỗi bình luận.
-- Ma trận đồng xuất hiện giữa các khía cạnh (heatmap).
-- Khía cạnh × ngành hàng (ví dụ `AUTHENTICITY` nổi bật ở thời trang và mỹ phẩm).
-- Tương quan rating ↔ cảm xúc khía cạnh (ví dụ 5 sao nhưng chê giao hàng).
+**Sau khi gán nhãn (EDA cho bài trích xuất):**
+- Số bộ ba trung bình mỗi bình luận; tỉ lệ bình luận không có bộ ba nào.
+- Độ dài cụm khía cạnh và cụm ý kiến (số từ).
+- **Khoảng cách** giữa khía cạnh và ý kiến (số từ ở giữa) → bao nhiêu % là "quan hệ xa".
+- Tỉ lệ **khía cạnh ẩn**, tỉ lệ 1 ý kiến nối nhiều khía cạnh.
+- Phân bố cảm xúc; top cụm khía cạnh / cụm ý kiến theo từng cảm xúc và từng ngành hàng.
+- Tương quan rating ↔ bộ ba (ví dụ 5 sao nhưng vẫn có bộ ba tiêu cực).
 
-Công cụ: `pandas`, `matplotlib`, `seaborn`, `wordcloud`, `plotly`.
+Công cụ: `pandas`, `matplotlib`, `seaborn`, `wordcloud`, `plotly`, `underthesea` (POS).
 
 ---
 
@@ -220,44 +251,21 @@ Công cụ: `pandas`, `matplotlib`, `seaborn`, `wordcloud`, `plotly`.
 
 ### 5.1. Cấu hình giao diện
 
-Mỗi khía cạnh là một nhóm lựa chọn; bỏ trống nghĩa là `None` (không đề cập):
-
 ```xml
 <View>
-  <Header value="Bình luận"/>
-  <Text name="text" value="$content"/>
-  <Header value="Rating gốc: $rating sao" size="6"/>
+  <Relations>
+    <Relation value="có_ý_kiến"/>
+  </Relations>
 
-  <View style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px">
-    <View><Header value="Chất lượng sản phẩm" size="5"/>
-      <Choices name="QUALITY" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Giá cả" size="5"/>
-      <Choices name="PRICE" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Giao hàng" size="5"/>
-      <Choices name="DELIVERY" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Đóng gói" size="5"/>
-      <Choices name="PACKAGING" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Dịch vụ shop" size="5"/>
-      <Choices name="SERVICE" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Đúng mô tả / chính hãng" size="5"/>
-      <Choices name="AUTHENTICITY" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-    <View><Header value="Tổng quan" size="5"/>
-      <Choices name="GENERAL" toName="text" choice="single" showInline="true">
-        <Choice value="Tích cực"/><Choice value="Trung lập"/><Choice value="Tiêu cực"/>
-      </Choices></View>
-  </View>
+  <Labels name="span" toName="text">
+    <Label value="ASPECT" background="#4C9AFF" hotkey="a"/>
+    <Label value="OP_POS" background="#36B37E" hotkey="p"/>
+    <Label value="OP_NEU" background="#FFAB00" hotkey="u"/>
+    <Label value="OP_NEG" background="#FF5630" hotkey="n"/>
+  </Labels>
+
+  <Text name="text" value="$content" granularity="word"/>
+  <Header value="Rating gốc: $rating sao" size="6"/>
 
   <Choices name="skip" toName="text" choice="single">
     <Choice value="Spam / vô nghĩa (loại bỏ)"/>
@@ -265,124 +273,188 @@ Mỗi khía cạnh là một nhóm lựa chọn; bỏ trống nghĩa là `None` 
 </View>
 ```
 
-> **Nâng cao:** thêm `<Labels>` để bôi đen **cụm từ khía cạnh** và **cụm từ thể hiện ý kiến** trong câu (dùng cho hướng nâng cao #3 ở §10).
+**Thao tác của người gán (mỗi câu):**
+1. Đọc cả câu.
+2. Chọn nhãn (`a` / `p` / `u` / `n`) rồi bôi đen cụm từ. `granularity="word"` tự bắt trọn từ, tránh bôi thiếu chữ.
+3. Chọn cụm khía cạnh → bấm **tạo quan hệ** → bấm cụm ý kiến tương ứng.
+4. Ý kiến không có khía cạnh rõ thì để nguyên, không nối (khía cạnh ẩn).
+5. Submit.
+
+> Phải **export dạng JSON** (không dùng JSON-MIN vì JSON-MIN làm mất quan hệ).
 
 ### 5.2. Bao nhiêu dữ liệu & chia tập thế nào
 
-**Mục tiêu: ~6.000 bình luận được gán nhãn.**
+**Mục tiêu: ~3.000 bình luận được gán nhãn (~6.000–9.000 bộ ba, ước tính 2–3 bộ ba/bình luận).**
 
-Lý do: có 7 khía cạnh × 3 cảm xúc = **21 cặp**, nhưng dữ liệu rất lệch. Với 3.000 mẫu, tập test chỉ có khoảng 5–7 câu cho các cặp hiếm (ví dụ `PACKAGING` Tiêu cực), sai 1 câu là F1 của cặp đó thay đổi 10–20 điểm. Khi đó kết quả không đáng tin, và không so sánh được các mô hình với nhau.
+Lý do:
+- Gán nhãn trích xuất **chậm hơn khoảng 2 lần** so với chọn ô (phải bôi cụm từ và nối quan hệ).
+- Các bộ dữ liệu ASTE chuẩn tiếng Anh (SemEval, ASTE-Data-V2) chỉ có **~1.000–2.000 câu mỗi bộ**. 3.000 bình luận (thường dài hơn 1 câu) là **ngang hoặc lớn hơn** các bộ này.
+- Mỗi bình luận cho nhiều bộ ba, nên số mẫu thực tế để mô hình học lớn hơn nhiều so với số câu.
 
-Ngưỡng tham khảo: **test ≥ 30–50 mẫu** và **train ≥ 100–200 mẫu** cho mỗi cặp chính. (Bộ UIT-ViSFD có khoảng 11.000 bình luận.)
-
-| Tập | Số mẫu | Hình dung | Cách lấy mẫu | Cách gán |
+| Tập | Số bình luận | Hình dung | Cách lấy mẫu | Cách gán |
 |---|---|---|---|---|
-| **Test** | 1.000 | Đề thi cuối kỳ: soạn trước, **cất kín**, chỉ dùng để chấm điểm cuối cùng | Ngẫu nhiên, phân tầng theo ngành hàng + rating, **giữ phân bố tự nhiên** | Chỉ gợi ý bằng từ khoá (không dùng mô hình), **30% gán chéo** |
-| **Val** | 800 | Đề thi thử: dùng để chỉnh tham số, chọn mô hình | Như test | Gợi ý từ khoá, 15% gán chéo |
-| **Train** | ~4.200 | Bài tập về nhà | 1.200 ngẫu nhiên (đợt 1) + ~3.000 do active learning chọn (đợt 2) | Gợi ý từ khoá, sau đó gợi ý bằng mô hình |
+| **Test** | 600 | Đề thi cuối kỳ: **cất kín**, chỉ dùng chấm điểm cuối cùng | Ngẫu nhiên, phân tầng theo ngành hàng + rating, **giữ phân bố tự nhiên**, 10–80 từ | Gợi ý bằng từ điển (không dùng mô hình), **30% gán chéo** |
+| **Val** | 400 | Đề thi thử: chỉnh tham số, chọn mô hình | Như test | Gợi ý từ điển, 15% gán chéo |
+| **Train** | ~2.000 | Bài tập về nhà | 600 ngẫu nhiên (đợt 1) + ~1.400 do active learning chọn (đợt 2) | Gợi ý từ điển, sau đó gợi ý bằng mô hình |
 
 **Quy tắc:**
 - Tập test được **chọn và đóng băng ngay từ đầu**. Không dùng nó để chọn mẫu, chỉnh tham số hay sửa guideline.
-- Val và test giữ phân bố tự nhiên. **Chỉ tập train** được bổ sung thêm khía cạnh hiếm và mẫu do active learning chọn.
+- Val và test giữ phân bố tự nhiên. **Chỉ tập train** được bổ sung mẫu do active learning chọn.
+- Vì rating 5 sao chiếm ~87%, khi phân tầng phải **lấy thêm câu 1–3 sao** để có đủ ý kiến tiêu cực / trung lập (ghi rõ tỉ lệ trong báo cáo).
 
 ### 5.3. Quy trình gán nhãn 2 đợt
 
 ```
-Pilot 200 ──► ĐỢT 1 (~3.000, tự gán từ đầu) ──► Điểm kiểm tra ──► ĐỢT 2 (~3.000, mô hình gợi ý, 3 vòng AL) ──► ~6.000
+Pilot 100 ──► ĐỢT 1 (~1.600, tự gán) ──► Điểm kiểm tra ──► ĐỢT 2 (~1.400, mô hình gợi ý, 2 vòng AL) ──► ~3.000
 ```
 
-**Bước 0 — Pilot (~200 mẫu):** cả nhóm cùng gán → thống nhất guideline và chốt schema khía cạnh. Mẫu pilot không đưa vào test.
+**Bước 0 — Pilot (~100 bình luận):** cả 4 người cùng gán → so độ đồng thuận → thống nhất guideline (ranh giới cụm từ, khía cạnh ẩn, cảm xúc). Mẫu pilot không đưa vào test.
 
-**Đợt 1 — Nền móng (~3.000 mẫu, gợi ý bằng từ khoá):**
-1. Gán **test 1.000** trước, rồi val 800 và train 1.200.
-2. **Pre-annotation bằng từ khoá:** dùng từ điển ở §2 để gợi ý khía cạnh (`labeling/preannotate.py` tạo JSON có sẵn `predictions` để import vào Label Studio). Người gán kiểm tra khía cạnh và chọn cảm xúc. Khoảng 45–60 giây/mẫu.
-3. Gán chéo để đo **Cohen's Kappa cho từng khía cạnh** (mục tiêu ≥ 0,7): 30% tập test, 15% phần còn lại. Thảo luận để thống nhất các câu bị gán khác nhau. (`labeling/make_tasks.py` chia file gán chính/chéo cho từng người, `labeling/kappa.py` tính Kappa và xuất danh sách câu lệch; quy trình chi tiết ở `TEAM_ASSIGNMENT.md` §11.)
+**Đợt 1 — Nền móng (~1.600, gợi ý bằng từ điển):**
+1. Gán **test 600** trước, rồi **val 400** và **train 600**.
+2. **Gợi ý bằng từ điển:** `labeling/preannotate.py` dùng `labeling/lexicon.json` (danh sách cụm khía cạnh, từ ý kiến tích cực / tiêu cực, từ phủ định, từ chỉ mức độ) để **bôi sẵn** các cụm từ và nối với khía cạnh gần nhất. Người gán sửa ranh giới, cảm xúc, quan hệ; thêm cụm bị sót. Khoảng **90–110 giây/bình luận**.
+3. **Gán chéo** để đo độ đồng thuận: 30% tập test, 15% val + train. Thảo luận các câu lệch. (`labeling/make_tasks.py` chia file, `labeling/agreement.py` đo đồng thuận; quy trình chi tiết ở `TEAM_ASSIGNMENT.md` §11.)
+
+**Đo độ đồng thuận thế nào** (bài trích xuất không dùng được Kappa kiểu "chọn ô"):
+
+| Chỉ số | Cách tính | Mục tiêu |
+|---|---|---|
+| **Triplet F1 giữa 2 người** | Coi người 1 là đáp án, người 2 là dự đoán; bộ ba khớp khi trùng cả 2 cụm từ và cảm xúc | **≥ 0,7** (chỉ số chính) |
+| Aspect F1 / Opinion F1 / Pair F1 | Như trên, cho từng thành phần | Tìm ra người gán lệch ở bước nào |
+| Triplet F1 khớp một phần | Cụm từ chỉ cần chồng lên nhau | Nếu cao hơn nhiều so với khớp chính xác → lệch chủ yếu ở **ranh giới** cụm từ |
+| Kappa cảm xúc + % khớp | Trên các cụm ý kiến 2 người bôi trùng | ≥ 0,8 |
+| Kappa theo từ | Cohen's Kappa trên nhãn BIO từng từ (Fleiss' Kappa cho pilot 4 người) | ≥ 0,7 |
 
 **Điểm kiểm tra giữa 2 đợt (1–2 buổi):**
-1. Khía cạnh nào Kappa < 0,6 thì sửa guideline trước khi gán tiếp.
-2. Đếm số mẫu từng cặp trong test. Cặp nào < 30 mẫu thì gộp lớp, hoặc chấp nhận và báo cáo F1 kèm khoảng tin cậy (bootstrap).
-3. Train **mô hình ban đầu** (SVM + ViSoBERT multi-task) trên 1.200 mẫu train, đánh giá trên val. Đây là baseline đầu tiên và là mô hình gợi ý nhãn cho đợt 2.
-4. Chốt số mẫu đợt 2 (có thể ít hơn 3.000 nếu các cặp hiếm đã đủ).
+1. Triplet F1 giữa người gán < 0,6 → sửa guideline trước khi gán tiếp.
+2. Đếm số bộ ba theo cảm xúc và theo khoảng cách trong test. Ý kiến `Trung lập` quá ít (< 50) thì cân nhắc gộp vào nhóm khác, hoặc giữ và báo cáo kèm khoảng tin cậy.
+3. Train **mô hình ban đầu** (CRF + SVM, và ViSoBERT tagger nếu kịp) trên 600 câu train, đánh giá trên val. Đây là baseline đầu tiên và là mô hình gợi ý nhãn cho đợt 2.
+4. Chốt số câu đợt 2.
 
-**Đợt 2 — Tăng tốc với active learning (~3.000 mẫu, 3 vòng × ~1.000):** xem §5.4. Người gán chỉ **kiểm tra và sửa** nhãn do mô hình gợi ý, khoảng 15–25 giây/mẫu. Mỗi vòng có 10% mẫu được gán lại **không có gợi ý** để kiểm tra người gán có bị mô hình dẫn dắt hay không.
+**Đợt 2 — Tăng tốc với active learning (~1.400, 2 vòng × ~700):** xem §5.4. Người gán chỉ **sửa** cụm từ và quan hệ do mô hình bôi sẵn, khoảng **40–50 giây/bình luận**. Mỗi vòng có 10% câu được gán lại **không có gợi ý** để kiểm tra người gán có bị mô hình dẫn dắt hay không.
 
 **Guideline** (`labeling/guideline.md`) cần làm rõ:
-- Ranh giới `QUALITY` và `GENERAL` ("sản phẩm tốt" là `GENERAL`; "vải mát, đường may đẹp" là `QUALITY`).
-- Ranh giới `QUALITY` và `AUTHENTICITY` ("không giống hình" là `AUTHENTICITY`).
-- Khi nào chọn `Trung lập` (mô tả khách quan, câu hỏi, khen-chê lẫn trong cùng khía cạnh).
-- Mỉa mai, phủ định ("giao nhanh thật, 2 tuần mới tới" là `DELIVERY` = Tiêu cực).
+- **Ranh giới cụm khía cạnh:** lấy cụm danh từ ngắn nhất đủ nghĩa (`chất vải`, không lấy `chất vải của cái áo này`).
+- **Ranh giới cụm ý kiến:** gồm từ phủ định và từ chỉ mức độ đi liền (`không bền`, `hơi mỏng`, `mỏng quá`); không gồm chủ ngữ, trạng ngữ thời gian.
+- Khi nào là `OP_NEU` (đánh giá ở mức trung bình: "tạm", "bình thường", "tương đối"), khi nào **không bôi** (mô tả khách quan, câu hỏi, mong muốn).
+- Khía cạnh ẩn, mỉa mai, so sánh ("tốt hơn hàng ngoài tiệm").
+- Mỗi quy tắc có **≥ 3 ví dụ thật** lấy từ dữ liệu Tiki.
 
-**Export:** JSON → script chuyển thành bảng phẳng `content, QUALITY, PRICE, DELIVERY, PACKAGING, SERVICE, AUTHENTICITY, GENERAL, split, batch` (giá trị `0=None, 1=Tích cực, 2=Trung lập, 3=Tiêu cực`; `split` = train/val/test; `batch` = đợt 1 / vòng AL 1–3) → `data/labeled/`.
+**Export:** JSON → `labeling/ls_to_dataset.py` → `data/labeled/`:
+- `aste_<split>.jsonl`: mỗi dòng 1 bình luận: `content`, danh sách cụm từ (vị trí ký tự), danh sách bộ ba, `split`, `batch`.
+- `bio_<split>.txt`: dạng CoNLL (mỗi dòng 1 từ + nhãn BIO), dùng cho CRF / BiLSTM-CRF / ViSoBERT tagger.
 
 ### 5.4. Active learning (đợt 2)
 
-**Ý tưởng:** thay vì chọn ngẫu nhiên, để mô hình chọn những câu **nó phân vân nhất**. Những câu này dạy mô hình được nhiều nhất trên mỗi giờ gán nhãn.
+**Ý tưởng:** để mô hình chọn những câu **nó phân vân nhất** thay vì chọn ngẫu nhiên. Những câu này dạy mô hình được nhiều nhất trên mỗi giờ gán nhãn.
 
 ```
-"sp tốt, giao nhanh"               → mô hình chắc chắn  → bỏ qua
-"giao nhanh thật, 2 tuần mới tới"  → mô hình phân vân   → CHỌN để gán nhãn
+"Sp tốt, giao nhanh"                                → mô hình chắc chắn  → bỏ qua
+"Chất vải của cái áo mình mua lần này thì mỏng quá" → phân vân (nối xa)  → CHỌN để gán nhãn
 ```
 
 **Một vòng (script offline `labeling/active_learning.py`):**
 
 | Bước | Việc làm | Thời gian |
 |---|---|---|
-| 1 | Mô hình hiện tại dự đoán toàn bộ kho ~10.000–14.000 bình luận dài chưa gán | SVM: vài giây; ViSoBERT: ~3–5 phút GPU |
-| 2 | Tính **độ không chắc chắn** mỗi câu = entropy lớn nhất trong 7 khía cạnh | Vài giây |
-| 3 | Chọn ~1.000 câu: **70%** phân vân nhất + **20%** chứa từ khoá khía cạnh hiếm + **10%** ngẫu nhiên (tránh lệch phân bố) | Vài giây |
-| 4 | Xuất JSON có `predictions` → import Label Studio → người gán sửa | ~5–7 giờ công |
-| 5 | Gộp vào train, train lại mô hình | SVM: vài giây; ViSoBERT: ~10–15 phút |
+| 1 | Mô hình hiện tại dự đoán toàn bộ kho ~12.000–17.000 bình luận chưa gán | CRF + SVM: vài phút (CPU); ViSoBERT: ~5 phút GPU |
+| 2 | Tính **độ không chắc chắn** mỗi câu = trung bình của: (a) độ không chắc khi tìm cụm từ (entropy nhãn BIO trung bình của 3 từ phân vân nhất), (b) độ không chắc khi nối quan hệ (cặp có xác suất gần 0,5 nhất) | Vài giây |
+| 3 | Chọn ~700 câu: **70%** phân vân nhất + **20%** câu "khó" theo luật (có từ phủ định, "nhưng", cụm `OP_NEU`, khía cạnh và ý kiến cách xa) + **10%** ngẫu nhiên | Vài giây |
+| 4 | Xuất JSON có `predictions` (cụm từ + quan hệ bôi sẵn) → import Label Studio → người gán sửa | ~8–9 giờ công |
+| 5 | Gộp vào train, train lại mô hình | CRF + SVM: vài phút; ViSoBERT: ~15–20 phút |
 
 **Lưu ý:**
-- Mẫu do active learning chọn **chỉ vào train**, không vào val/test.
-- Ghi lại sau mỗi vòng: F1 trên val, và **tỉ lệ nhãn gợi ý được giữ nguyên** (tỉ lệ này tăng nghĩa là mô hình tốt dần). Hai số liệu này đưa vào báo cáo.
-- Tích hợp trực tiếp bằng Label Studio ML Backend (mô hình gợi ý ngay trong giao diện) để ở phần nâng cao (§10).
+- Câu do active learning chọn **chỉ vào train**.
+- Ghi lại sau mỗi vòng: Triplet F1 trên val, và **tỉ lệ bộ ba gợi ý được giữ nguyên**. Hai số liệu này đưa vào báo cáo.
+- Tích hợp trực tiếp bằng Label Studio ML Backend để ở phần nâng cao (§10).
 
 ---
 
 ## 6. Tiền xử lý dữ liệu (Preprocessing)
 
+Bài trích xuất dựa vào **vị trí ký tự** của cụm từ. Nếu văn bản bị sửa sau khi gán nhãn (bỏ dấu câu, đổi teencode...) thì vị trí bị lệch và nhãn hỏng. Vì vậy tiền xử lý chia **2 lớp**:
+
+**Lớp 1 — Trước khi gán nhãn (sửa văn bản, sau đó KHÔNG đổi nữa):**
+
 | Bước | Chi tiết |
 |---|---|
-| Làm sạch | Bỏ HTML, URL, số điện thoại, ký tự thừa |
+| Làm sạch | Bỏ HTML, URL, số điện thoại; gộp khoảng trắng thừa |
 | Chuẩn hoá Unicode | NFC; chuẩn hoá kiểu gõ dấu (`òa` ↔ `oà`) |
-| Lowercase | Chuyển chữ thường |
-| Teencode / viết tắt | Từ điển: `k/ko/hok → không`, `dc/đc → được`, `sp → sản phẩm`, `shop rep → shop trả lời`... |
-| Ký tự lặp | `đẹpppp → đẹp` |
-| Emoji | Chuyển thành token cảm xúc (`😍 → emo_pos`, `😡 → emo_neg`) |
-| Tách từ | `underthesea` / `pyvi` cho ML; **VnCoreNLP RDRSegmenter** cho PhoBERT; **không tách từ** cho ViSoBERT (tokenizer tự xử lý) |
-| Lưu 2 phiên bản text | Bản *chuẩn hoá đầy đủ* (cho ML, PhoBERT) và bản *làm sạch nhẹ, giữ teencode/emoji* (cho ViSoBERT, vì mô hình đã học những thứ này khi pre-train) |
-| Stopwords | Bỏ stopwords nhưng **giữ từ phủ định** (`không`, `chẳng`, `chưa`) và **từ chỉ khía cạnh** |
-| Phủ định | Ghép `không tốt → không_tốt` (giúp ML truyền thống) |
-| Chia dữ liệu | Theo §5.2: Test 1.000 / Val 800 / Train ~4.200. Test và val lấy bằng **iterative stratification** cho multi-label (`iterative-stratification`) ngay từ đợt 1 rồi cố định |
-| Mất cân bằng | Class weights cho từng khía cạnh; oversampling các khía cạnh hiếm |
+| Ẩn thông tin cá nhân | Tên người, số điện thoại trong nội dung → `<NAME>`, `<PHONE>` |
+| Lọc | Bỏ spam, bỏ câu < 10 từ hoặc > 80 từ khỏi danh sách cần gán |
+
+→ Văn bản sau lớp 1 chính là văn bản hiển thị trong Label Studio và lưu trong `data/labeled/`.
+
+**Lớp 2 — Khi đưa vào mô hình (không đổi văn bản gốc, xử lý trên từng từ và giữ căn chỉnh với nhãn):**
+
+| Bước | Chi tiết |
+|---|---|
+| Tách từ | Tách theo âm tiết + dấu câu (`src/preprocessing/tokenizer.py`), mỗi từ giữ vị trí ký tự gốc → đổi cụm từ thành nhãn BIO |
+| Chuẩn hoá từng từ (cho CRF / BiLSTM) | Chữ thường, teencode (`ko → không`, `sp → sản phẩm`), ký tự lặp (`đẹpppp → đẹp`), emoji → `emo_pos` / `emo_neg`. Thay **trên từng từ** (dùng làm đặc trưng), không xoá từ nào, nên nhãn vẫn khớp |
+| ViSoBERT | Dùng văn bản lớp 1, **không chuẩn hoá thêm** (mô hình đã học teencode, emoji). Nhãn của từ gán cho sub-token đầu tiên |
+| PhoBERT | Tách từ ghép bằng VnCoreNLP (`chất_vải`); nhãn của từ ghép lấy theo âm tiết đầu; khi dự đoán thì tách ngược lại về vị trí ký tự |
+| Không bỏ stopwords | Bỏ từ sẽ làm lệch vị trí và mất từ phủ định / mức độ ("không", "hơi", "quá") nằm trong cụm ý kiến |
+| Chia dữ liệu | Theo §5.2: Test 600 / Val 400 / Train ~2.000, phân tầng theo ngành hàng + rating, cố định từ đầu |
 
 ---
 
 ## 7. Xây dựng & huấn luyện mô hình
 
-### 7.1. Cách đặt bài toán
+### 7.1. Cách đặt bài toán: pipeline 2 bước
 
-**Cách A — Hai giai đoạn (pipeline):**
-1. *Aspect Category Detection (ACD):* multi-label, 7 nhãn nhị phân (có/không đề cập).
-2. *Aspect Sentiment Classification (ASC):* với mỗi khía cạnh được phát hiện, phân loại 3 lớp cảm xúc.
+```
+Bình luận
+   │
+   ▼
+[Bước 1: Tìm cụm từ]  gán nhãn chuỗi (sequence labeling), mỗi từ nhận 1 trong 9 nhãn BIO:
+   │                  B-ASP I-ASP │ B-POS I-POS │ B-NEU I-NEU │ B-NEG I-NEG │ O
+   │
+   │   Chất  vải   của  áo    thì  mỏng   quá   ,  shop  tư    vấn   nhiệt tình
+   │   B-ASP I-ASP O    B-ASP O    B-NEG  I-NEG O  B-ASP B-POS I-POS I-POS  I-POS
+   ▼
+[Bước 2: Nối quan hệ]  trích xuất quan hệ (relation extraction): với mỗi cặp (cụm khía cạnh, cụm ý kiến)
+   │                   trong câu → hai cụm này có đi với nhau không?
+   │   (chất vải, mỏng quá) ✔   (áo, mỏng quá) ✘   (shop, tư vấn nhiệt tình) ✔   (chất vải, tư vấn nhiệt tình) ✘
+   ▼
+[Ghép]  → bộ ba; cụm ý kiến không nối với khía cạnh nào → khía cạnh ẩn (∅)
+   (chất vải, mỏng quá, Tiêu cực) · (shop, tư vấn nhiệt tình, Tích cực)
+```
 
-**Cách B — Gộp (joint):** mỗi khía cạnh là một bài toán **4 lớp** `{None, Tích cực, Trung lập, Tiêu cực}` → 7 bộ phân loại song song.
+- **Cảm xúc nằm trong nhãn của bước 1** (B-POS / B-NEG...), nên không cần thêm bước phân loại cảm xúc riêng.
+- Bước 2 là phần **"bắt quan hệ xa"** đúng như gợi ý IRE của đề bài: "chất vải" và "mỏng quá" cách nhau 3 từ.
+- Pipeline cho phép **ghép tự do** mô hình bước 1 và bước 2 (ví dụ CRF + SVM, ViSoBERT + ViSoBERT) và đánh giá **riêng từng bước**.
 
-→ Thực hiện **cả hai cách với ML** để so sánh. Với DL dùng Cách B (multi-head).
+### 7.2. Baseline luật & Machine Learning truyền thống (≥ 3 mô hình)
 
-### 7.2. Machine Learning truyền thống (≥ 3 mô hình)
+**Baseline luật** (`src/models/rule_baseline.py`), theo hướng Hu & Liu (2004) và Qiu et al. (2011):
+1. POS tagging bằng `underthesea`.
+2. **Cụm khía cạnh** = cụm danh từ có trong từ điển khía cạnh (hoặc danh từ đứng trước tính từ ý kiến).
+3. **Cụm ý kiến** = tính từ / động từ có trong từ điển ý kiến + từ phủ định và từ mức độ đi liền. Cảm xúc lấy từ từ điển, **đảo chiều** khi có phủ định.
+4. **Nối:** mẫu `[danh từ] (thì | rất | hơi | khá | cũng)* [tính từ]`; nếu không khớp mẫu thì nối với khía cạnh gần nhất **bên trái, cùng mệnh đề** (tách mệnh đề bởi `,` `.` `nhưng` `mà`).
 
-**Đặc trưng:** TF-IDF (word uni+bi-gram, char n-gram 2–5); đặc trưng phụ: đếm từ khoá khía cạnh, đếm từ cảm xúc (từ điển VietSentiWordNet), emoji token.
+**Bước 1 — Tìm cụm từ:**
 
-| Mô hình | Cách dùng |
+| Mô hình | Đặc trưng | Ghi chú |
+|---|---|---|
+| **CRF** (`sklearn-crfsuite`) — *ML chính* | Từ (chữ thường), từ đã chuẩn hoá teencode, POS, có trong từ điển khía cạnh / ý kiến tích cực / tiêu cực, là từ phủ định / mức độ, viết hoa, chữ số, emoji; **cửa sổ ±2 từ**; bigram | Mô hình chuẩn cho gán nhãn chuỗi, học cả **chuyển nhãn** (B-ASP → I-ASP) |
+| Logistic Regression / Linear SVM *theo từng từ* (đối chứng) | Cùng đặc trưng, nhưng đoán từng từ độc lập | Cho thấy vì sao cần mô hình chuỗi (hay sinh `I-` không có `B-`) |
+
+**Bước 2 — Nối quan hệ** (mỗi cặp ứng viên là 1 mẫu):
+
+| Đặc trưng của cặp (khía cạnh, ý kiến) |
+|---|
+| Khoảng cách (số từ), khía cạnh đứng trước hay sau |
+| Các từ ở giữa (bag-of-words), có dấu câu / "nhưng" / "còn" / "mà" ở giữa không, có khía cạnh khác ở giữa không |
+| Có phải khía cạnh gần nhất của ý kiến này không; cùng mệnh đề không |
+| POS và nội dung (TF-IDF) của 2 cụm |
+
+| Mô hình | Ghi chú |
 |---|---|
-| **Multinomial Naive Bayes** | Baseline |
-| **Logistic Regression** | `class_weight='balanced'` |
-| **Linear SVM (LinearSVC)** | Thường mạnh nhất với TF-IDF |
-| Random Forest / XGBoost | Bổ sung so sánh |
+| **Logistic Regression** | `class_weight='balanced'` (số cặp "không nối" nhiều hơn hẳn) |
+| **Linear SVM** | |
+| **Random Forest / XGBoost** | Bắt được tương tác giữa các đặc trưng (khoảng cách × có "nhưng" ở giữa) |
 
-Bọc bằng `MultiOutputClassifier` (Cách B) hoặc `OneVsRestClassifier` + từng bộ ASC (Cách A). Tinh chỉnh bằng `GridSearchCV` / `Optuna`, metric **macro-F1**.
+**Các tổ hợp được báo cáo:** Luật · CRF + LR · CRF + SVM · CRF + RF. Tinh chỉnh bằng `GridSearchCV` / `Optuna` (CRF: `c1`, `c2`), metric chọn mô hình: **Triplet F1 trên val**.
 
 ### 7.3. Deep Learning (≥ 1 mô hình)
 
@@ -390,26 +462,49 @@ Bọc bằng `MultiOutputClassifier` (Cách B) hoặc `OneVsRestClassifier` + t�
 
 | Encoder | Pre-train trên | Tách từ | Vì sao dùng |
 |---|---|---|---|
-| **ViSoBERT** (`uitnlp/visobert`) — *ưu tiên* | Văn bản mạng xã hội tiếng Việt | Không cần | Bình luận TMĐT gần với văn mạng xã hội: teencode, viết tắt, emoji, không dấu |
-| **PhoBERT** (`vinai/phobert-base-v2`) | Wikipedia + báo chí | Bắt buộc (VnCoreNLP) | Baseline chuẩn, được dùng trong hầu hết nghiên cứu ABSA tiếng Việt → dễ đối chiếu |
+| **ViSoBERT** (`uitnlp/visobert`) — *ưu tiên* | Văn bản mạng xã hội tiếng Việt | Không cần | Bình luận TMĐT gần với văn mạng xã hội: teencode, viết tắt, emoji, không dấu. Không tách từ → **căn chỉnh nhãn với vị trí ký tự dễ hơn** |
+| **PhoBERT** (`vinai/phobert-base-v2`) | Wikipedia + báo chí | Bắt buộc (VnCoreNLP) | Baseline chuẩn cho tiếng Việt → dễ đối chiếu |
 
-**Kiến trúc (áp dụng cho cả hai encoder, chỉ đổi tên model):**
+**Kiến trúc:**
 
-| Mô hình | Kiến trúc |
-|---|---|
-| **Multi-task** (chính) | Encoder → vector `[CLS]` / `<s>` → **7 head**, mỗi head là Linear 4 lớp; loss = tổng CrossEntropy (có class weight) của 7 head |
-| Sentence-pair | Ghép input `[bình luận] </s> [tên khía cạnh]` → phân loại 4 lớp (theo Sun et al., 2019); tăng dữ liệu ×7, thường tốt cho khía cạnh hiếm |
-| BiLSTM + Attention / TextCNN | Embedding fastText/word2vec tiếng Việt, đầu ra multi-head tương tự — DL không dùng transformer để so sánh |
+| Mô hình | Bước | Kiến trúc |
+|---|---|---|
+| **BiLSTM-CRF** | 1 | Embedding fastText/word2vec tiếng Việt (+ char-CNN) → BiLSTM → CRF. DL không dùng transformer, để so sánh |
+| **ViSoBERT / PhoBERT tagger** (chính) | 1 | Encoder → Linear 9 nhãn trên từng token (token classification); tuỳ chọn thêm **lớp CRF** ở trên |
+| **ViSoBERT / PhoBERT pair** (chính) | 2 | Đánh dấu cặp ứng viên trong câu: `<a> chất vải </a> của áo thì <o> mỏng quá </o>` → vector `<s>` → nối / không nối |
 
-**Phân tích so sánh ViSoBERT và PhoBERT** (đưa vào báo cáo):
-- Kết quả tổng thể (Pair F1) và theo từng khía cạnh.
-- Chia tập test theo **mức độ "phi chuẩn"** của câu (tỉ lệ teencode, emoji, không dấu) → xem khoảng cách giữa hai mô hình thay đổi thế nào.
-- Ảnh hưởng của tiền xử lý: ViSoBERT với text giữ nguyên teencode so với text đã chuẩn hoá.
-- Chi phí: thời gian huấn luyện, tốc độ suy luận, độ phức tạp khi triển khai (PhoBERT cần VnCoreNLP/Java trong app).
+**Phân tích so sánh** (đưa vào báo cáo):
+- ViSoBERT và PhoBERT: tổng thể và theo **mức độ "phi chuẩn"** của câu (tỉ lệ teencode, emoji, không dấu).
+- Transformer và CRF: khác biệt lớn nhất ở **quan hệ xa** và **phủ định**?
+- Chi phí: thời gian huấn luyện, tốc độ suy luận, độ phức tạp triển khai (PhoBERT cần VnCoreNLP/Java).
 
-Mô hình tốt hơn sẽ được dùng làm mô hình mặc định trong app. **Nếu chỉ kịp chạy một mô hình, chọn ViSoBERT.**
+Mô hình tốt hơn sẽ dùng mặc định trong app. **Nếu chỉ kịp chạy một mô hình, chọn ViSoBERT.**
 
-Huấn luyện trên Colab / Kaggle GPU. Siêu tham số gợi ý (dùng chung cho cả hai để so sánh công bằng): `lr=2e-5`, `batch=16`, `max_len=256`, `epochs=5–8`, early stopping theo val macro-F1, fp16, cùng seed và cùng tập chia train/val/test.
+Huấn luyện trên Colab / Kaggle GPU. Siêu tham số gợi ý: tagger `lr=3e-5`, `batch=16`, `max_len=160`, `epochs=10–15`; pair `lr=2e-5`, `epochs=4–6`; early stopping theo Triplet F1 trên val, fp16, cùng seed và cùng tập chia.
+
+### 7.4. Ghép thành bộ ba (`src/models/predict.py`)
+
+```
+predict(text, tagger, pairer) →
+  1. tagger: từ → nhãn BIO → các cụm từ (vị trí ký tự)
+  2. pairer: mọi cặp (khía cạnh, ý kiến) trong câu → xác suất nối; giữ cặp > ngưỡng (chỉnh trên val)
+  3. ý kiến không có cặp nào → khía cạnh ẩn
+  → [{"aspect": "chất vải", "opinion": "mỏng quá", "polarity": "NEG", "aspect_span": [0, 8], ...}, ...]
+```
+
+Một hàm dùng chung cho **đánh giá**, **active learning** (§5.4) và **app** (§9).
+
+### 7.5. Gom nhóm khía cạnh & đặt tên chủ đề (phân cụm)
+
+Cụm khía cạnh trích xuất được là **văn bản tự do**: "vải", "chất vải", "chất liệu", "đường may", "ship", "shipper", "giao hàng"... Để thống kê được ("bao nhiêu người chê **chất liệu**?") cần gom các cụm cùng nghĩa thành **chủ đề**:
+
+1. Lấy toàn bộ cụm khía cạnh trích xuất từ **kho chưa gán nhãn** (~15.000 bình luận), chuẩn hoá (chữ thường, teencode), đếm tần suất.
+2. Biểu diễn mỗi cụm bằng vector: trung bình embedding ViSoBERT của cụm **trong ngữ cảnh** các câu chứa nó (hoặc fastText).
+3. Phân cụm: **Agglomerative** (cosine) / **HDBSCAN**; chọn số cụm bằng silhouette score.
+4. **Đặt tên chủ đề** cho mỗi cụm: cụm từ xuất hiện nhiều nhất, hoặc top từ theo c-TF-IDF (tuỳ chọn: nhờ LLM đặt tên).
+5. Đánh giá: silhouette + **người kiểm tra ~300 cụm từ phổ biến nhất** (độ thuần của mỗi chủ đề).
+
+Kết quả là bảng `cụm khía cạnh → chủ đề` (`models/aspect_topics.json`), dùng trong dashboard: *"Chất liệu: mỏng (42 lần), mát (30), nhăn (12)"*.
 
 ---
 
@@ -417,103 +512,89 @@ Huấn luyện trên Colab / Kaggle GPU. Siêu tham số gợi ý (dùng chung c
 
 ### 8.1. Metrics & so sánh mô hình
 
-Đánh giá theo **3 cấp** (giống cách UIT-ViSFD / VLSP-ABSA báo cáo):
+Đánh giá theo **3 cấp**:
 
 | Cấp | Metric | Ý nghĩa |
 |---|---|---|
-| **Aspect detection** | Precision / Recall / F1 (micro & macro) trên 7 khía cạnh | Mô hình có nhận ra đúng khía cạnh được nhắc tới không |
-| **Aspect sentiment** | Accuracy, macro-F1 trên những khía cạnh *thật sự có đề cập* | Đã biết khía cạnh thì đoán đúng cảm xúc không |
-| **Aspect + Sentiment (cặp)** | F1 trên cặp `(khía cạnh, cảm xúc)` | Chỉ số tổng hợp, **dùng để xếp hạng mô hình** |
+| **Tìm cụm từ** (bước 1) | P / R / F1 mức cụm từ, **khớp chính xác** (`seqeval`) cho cụm khía cạnh và cụm ý kiến; thêm F1 **khớp một phần** | Mô hình tìm đúng cụm từ không |
+| **Nối quan hệ** (bước 2) | Pair F1 `(khía cạnh, ý kiến)`: (a) với cụm từ **đúng** cho sẵn → đo riêng bước 2; (b) với cụm từ mô hình tự tìm | Mô hình nối đúng không |
+| **Bộ ba** (toàn bộ) | **Triplet F1**: đúng cả cụm khía cạnh, cụm ý kiến và cảm xúc | Chỉ số tổng hợp, **dùng để xếp hạng mô hình** |
 
-Ngoài ra:
-- Bảng F1 theo **từng khía cạnh** × từng mô hình (heatmap).
-- Confusion matrix cho từng khía cạnh.
-- **Error analysis:** mỉa mai, phủ định, nhầm `QUALITY`/`GENERAL`, khía cạnh ẩn (không có từ khoá rõ).
-- So sánh Cách A và Cách B; so sánh với baseline chỉ dùng từ khoá.
+**Phân tích sâu:**
+- Triplet F1 theo **khoảng cách** khía cạnh – ý kiến: 0–2 từ / 3–5 từ / ≥ 6 từ → mô hình nào bắt **quan hệ xa** tốt hơn.
+- Theo cảm xúc (Tích cực / Trung lập / Tiêu cực), khía cạnh ẩn, câu có 1 bộ ba và câu có ≥ 3 bộ ba, theo ngành hàng.
+- **Error analysis:** lệch ranh giới ("mỏng" thay vì "mỏng quá"), nối nhầm trong câu nhiều khía cạnh, phủ định, mỉa mai, bỏ sót khía cạnh ẩn.
 
 Mẫu bảng kết quả:
 
-| Mô hình | Aspect F1 | Sentiment macro-F1 | Pair F1 | Train time |
-|---|---|---|---|---|
-| Keyword baseline | | | | |
-| Naive Bayes | | | | |
-| Logistic Regression | | | | |
-| Linear SVM | | | | |
-| Random Forest / XGBoost | | | | |
-| BiLSTM + Attention | | | | |
-| PhoBERT multi-task | | | | |
-| PhoBERT sentence-pair | | | | |
-| ViSoBERT multi-task | | | | |
-| ViSoBERT sentence-pair | | | | |
+| Mô hình (bước 1 + bước 2) | Aspect F1 | Opinion F1 | Pair F1 | **Triplet F1** | Train time |
+|---|---|---|---|---|---|
+| Luật (từ điển + mẫu câu) | | | | | |
+| CRF + Logistic Regression | | | | | |
+| CRF + Linear SVM | | | | | |
+| CRF + Random Forest | | | | | |
+| BiLSTM-CRF + Linear SVM | | | | | |
+| PhoBERT tagger + PhoBERT pair | | | | | |
+| ViSoBERT tagger + ViSoBERT pair | | | | | |
+| *(nâng cao)* LLM few-shot | | | | | |
 
-### 8.2. Giải thích mô hình (LIME / SHAP)
+### 8.2. Giải thích mô hình
 
-**Mục tiêu:** chỉ ra **từ nào** khiến mô hình kết luận, ví dụ, "Giao hàng: Tiêu cực". Từ đó kiểm tra mô hình học đúng tín hiệu ("chậm", "lâu", "shipper thái độ") hay học nhầm tín hiệu phụ (tên sản phẩm, tên shop, độ dài câu).
+**Mục tiêu:** chỉ ra **vì sao** mô hình bôi "mỏng quá" là Tiêu cực và **vì sao** nối nó với "chất vải" chứ không phải "áo". Từ đó kiểm tra mô hình học đúng tín hiệu hay học nhầm.
 
-**Phương pháp theo loại mô hình:**
-
-| Mô hình | Phương pháp | Ghi chú |
+| Mô hình | Phương pháp | Ví dụ kết quả |
 |---|---|---|
-| LR / Linear SVM | **Hệ số mô hình** (global) + **SHAP `LinearExplainer`** (local) | Chính xác, gần như tức thì |
-| Naive Bayes, RF / XGBoost | SHAP (`TreeExplainer` cho cây) hoặc LIME | |
-| ViSoBERT / PhoBERT multi-task | **LIME** (`LimeTextExplainer`) + **SHAP `Partition` explainer** với text masker | Viết hàm wrapper `predict_proba(texts) → xác suất 4 lớp` cho **từng head khía cạnh**; một lần forward trả về đủ 7 head nên có thể giải thích nhiều khía cạnh cùng lúc |
-| BiLSTM + Attention | Trọng số attention (tham khảo) + LIME | Attention không hẳn là giải thích, chỉ dùng để đối chiếu |
-
-> Đơn vị giải thích: với ViSoBERT tách theo **âm tiết/khoảng trắng**; với PhoBERT và ML dùng **từ đã tách** (`giao_hàng`) cho dễ đọc.
+| **CRF** | **Trọng số đặc trưng** (state features) và **trọng số chuyển nhãn** (transitions), xem bằng `eli5` hoặc trực tiếp từ `sklearn-crfsuite` | "từ trong từ điển tiêu cực" → `B-NEG` (+3,2); "từ trước là *không*" → đảo cảm xúc; `B-ASP → I-ASP` (+4,1), `O → I-ASP` (−5,0) |
+| **LR / Linear SVM (nối)** | **Hệ số mô hình** (global) + **SHAP `LinearExplainer`** (từng cặp) | "có *nhưng* ở giữa" → không nối; "khoảng cách > 6 từ" → giảm xác suất nối |
+| **ViSoBERT / PhoBERT pair** | **LIME** + **SHAP Partition** trên các từ của câu | Từ "thì" và vị trí sát nhau đẩy về "nối"; dấu "," + "shop" đẩy về "không nối" |
+| **ViSoBERT / PhoBERT tagger** | **Integrated Gradients** (`captum`) cho nhãn của từng từ (tuỳ chọn) | Vì sao "lâu" được gán `B-NEG` |
 
 **Các phân tích đưa vào báo cáo:**
-1. **Global:** top 15 từ đóng góp nhiều nhất cho mỗi cặp `(khía cạnh, cảm xúc)` của SVM/LR, so với tổng hợp SHAP của ViSoBERT trên tập test. Xem hai bên có cùng tín hiệu hay không.
-2. **Local:** giải thích **~100–200 mẫu test** chọn phân tầng: đúng/sai × từng khía cạnh. Ưu tiên các ca khó: phủ định ("không hề chậm"), mỉa mai, câu khen-chê lẫn lộn, khía cạnh ẩn.
-3. **Gắn với error analysis (§8.1):** với mẫu dự đoán sai, chỉ ra từ gây nhầm, sau đó đề xuất cách sửa (bổ sung từ điển teencode, thêm mẫu gán nhãn, chỉnh guideline).
-4. **So sánh mô hình trên cùng một câu:** SVM và ViSoBERT nhìn vào từ nào. Ví dụ minh hoạ vì sao transformer xử lý phủ định tốt hơn.
-5. **Kiểm tra độ tin cậy của giải thích (deletion test):** xoá top-k từ quan trọng theo LIME/SHAP rồi đo mức giảm xác suất, so với xoá k từ ngẫu nhiên. Giảm càng mạnh thì giải thích càng đáng tin. Kiểm tra thêm mức đồng thuận giữa LIME và SHAP (độ trùng top-k từ).
+1. **Global:** top đặc trưng của CRF cho từng nhãn; top đặc trưng của SVM khi nối. Đối chiếu với tổng hợp SHAP của ViSoBERT pair.
+2. **Local:** giải thích **~100–150 bộ ba test** chọn phân tầng: đúng / sai × gần / xa × có phủ định.
+3. **Gắn với error analysis:** với bộ ba sai, chỉ ra từ gây nhầm → đề xuất sửa (thêm từ điển, thêm mẫu, sửa guideline).
+4. **So sánh CRF + SVM và ViSoBERT trên cùng một câu** khó (quan hệ xa, phủ định).
+5. **Deletion test:** xoá top-k từ quan trọng theo LIME/SHAP → đo mức giảm xác suất nối, so với xoá ngẫu nhiên.
 
-**Trình bày:** highlight từ trong câu (xanh đẩy về Tích cực, đỏ đẩy về Tiêu cực, độ đậm theo mức đóng góp), bar chart top từ, bảng ví dụ đúng/sai.
+**Trình bày:** bôi màu từ trong câu theo mức đóng góp, bar chart top đặc trưng, bảng ví dụ đúng / sai.
 
 ### 8.3. Learning curve — bao nhiêu dữ liệu là đủ?
 
-**Mục đích:** trả lời câu hỏi "có cần gán thêm dữ liệu không" bằng số liệu thật, thay vì phán đoán.
-
-**Cách làm:**
-- Lấy các tập con lồng nhau của train: **500 → 1.000 → 2.000 → 3.000 → 4.200** mẫu.
-- Với mỗi kích thước, train **SVM, LR, ViSoBERT multi-task** (PhoBERT nếu còn GPU), mỗi mô hình **3 seed**.
-- Đánh giá trên **cùng tập test 1.000**: Pair F1 tổng + F1 của 2–3 khía cạnh hiếm.
-- Vẽ biểu đồ: trục X là số mẫu train, trục Y là F1, mỗi đường là một mô hình, có thanh sai số theo seed.
+- Tập con lồng nhau của train: **250 → 500 → 1.000 → 1.500 → 2.000** bình luận.
+- Mỗi kích thước train **CRF + SVM** và **ViSoBERT tagger + pair**, mỗi mô hình **3 seed**.
+- Đánh giá trên **cùng tập test 600**: Triplet F1 + F1 của ý kiến Tiêu cực và bộ ba quan hệ xa.
 
 ```
-F1
+Triplet F1
  │                     ●────●   ← đi ngang: thêm dữ liệu không giúp nhiều → đã đủ
  │               ●
  │         ●
  │   ●
- └───────────────────────────── Số mẫu train
-    500  1.000 2.000 3.000 4.200
+ └───────────────────────────── Số bình luận train
+    250   500  1.000 1.500 2.000
 ```
-
-**Cách đọc:**
 
 | Hình dạng đường | Kết luận |
 |---|---|
-| Vẫn dốc lên ở 4.200 | Gán thêm vẫn có lợi → ghi vào hướng phát triển |
-| Đi ngang từ khoảng 3.000 | Dữ liệu đã đủ; muốn tốt hơn phải đổi/cải tiến mô hình |
-| ViSoBERT vượt SVM từ một mốc nào đó | Cho biết cần bao nhiêu dữ liệu để transformer đáng dùng |
-| Khía cạnh hiếm vẫn tăng mạnh khi tổng đã ngang | Cần lấy thêm mẫu có chủ đích cho khía cạnh đó |
+| Vẫn dốc lên ở 2.000 | Gán thêm vẫn có lợi → ghi vào hướng phát triển |
+| Đi ngang từ khoảng 1.500 | Dữ liệu đã đủ; muốn tốt hơn phải đổi / cải tiến mô hình |
+| ViSoBERT vượt CRF từ một mốc nào đó | Cho biết cần bao nhiêu dữ liệu để transformer đáng dùng |
 
-**(Tuỳ chọn)** Vẽ thêm đường so sánh **active learning và chọn ngẫu nhiên** với cùng số mẫu, để chứng minh active learning hiệu quả.
+**(Tuỳ chọn)** Vẽ thêm đường **active learning và chọn ngẫu nhiên** với cùng số câu.
 
 ---
 
 ## 9. Ứng dụng (Deployment) — Web app Streamlit
 
 **Chức năng cơ bản (bắt buộc):**
-1. **Phân tích 1 bình luận:** nhập text → bảng khía cạnh + cảm xúc + xác suất, tô màu xanh/xám/đỏ.
-2. **Chọn mô hình:** dropdown SVM / LR / PhoBERT / ViSoBERT để so sánh trực tiếp.
-3. **Phân tích hàng loạt:** upload CSV → trả về CSV có 7 cột khía cạnh + biểu đồ tổng hợp.
-4. **Giải thích dự đoán:** nút "Vì sao?" cạnh mỗi khía cạnh → highlight các từ ảnh hưởng (SHAP linear cho SVM/LR, kết quả tức thì; LIME với ~300 mẫu nhiễu cho ViSoBERT/PhoBERT, mất ~15–45 giây trên CPU, có thanh tiến trình và cache kết quả).
+1. **Phân tích 1 bình luận:** nhập text → **bôi màu ngay trên câu** (khía cạnh xanh dương, ý kiến xanh lá / vàng / đỏ) + bảng bộ ba + xác suất.
+2. **Chọn mô hình:** Luật / CRF + SVM / ViSoBERT / PhoBERT để so sánh trực tiếp.
+3. **Phân tích hàng loạt:** upload CSV → CSV bộ ba (mỗi dòng 1 bộ ba) + biểu đồ top khía cạnh được khen / bị chê.
+4. **Giải thích:** nút "Vì sao?" cạnh mỗi bộ ba → bôi màu các từ khiến mô hình nối và gán cảm xúc (hệ số SVM: tức thì; LIME cho ViSoBERT: ~15–30 giây trên CPU, có thanh tiến trình và cache).
 
 **Chức năng nâng cao (điểm cộng):**
-5. **Phân tích sản phẩm:** dán link Tiki → crawl review realtime → **radar chart điểm từng khía cạnh**, tỉ lệ khen/chê mỗi khía cạnh, top bình luận tiêu cực theo khía cạnh.
-6. **So sánh 2 sản phẩm** theo từng khía cạnh.
+5. **Phân tích sản phẩm:** dán link Tiki → crawl review realtime → trích xuất bộ ba → gom theo chủ đề (§7.5) → **"Top điều được khen / bị chê"** kèm số lần và câu gốc làm bằng chứng; biểu đồ tỉ lệ khen / chê theo chủ đề.
+6. **So sánh 2 sản phẩm** theo từng chủ đề.
 
 Triển khai: local, Streamlit Community Cloud hoặc Hugging Face Spaces.
 
@@ -521,58 +602,61 @@ Triển khai: local, Streamlit Community Cloud hoặc Hugging Face Spaces.
 
 ## 10. Hướng nâng cao (triển khai nếu còn thời gian)
 
-Sắp theo thứ tự ưu tiên (giá trị cao, công sức hợp lý trước):
-
 | # | Hướng nâng cao | Mô tả | Công sức |
 |---|---|---|---|
-| 1 | **Dashboard phân tích sản phẩm** | Chức năng 5–6 ở §9: link sản phẩm → radar chart khía cạnh, so sánh sản phẩm | Thấp |
-| 2 | **Label Studio ML Backend** | Active learning offline đã nằm trong phần chính (§5.4). Nâng cao: chạy mô hình như một service để Label Studio lấy gợi ý trực tiếp trong giao diện, không cần xuất/nhập file mỗi vòng | Trung bình |
-| 3 | **Trích xuất cụm từ khía cạnh & ý kiến (span-level)** | Gán nhãn span trong Label Studio (BIO tagging) → ViSoBERT/PhoBERT token classification → app **highlight** đúng cụm "giao chậm", "vải mát" trong câu | Trung bình–cao |
-| 4 | **Cải tiến mô hình** | Focal loss cho khía cạnh hiếm, ensemble ViSoBERT + PhoBERT (+ SVM), continued pre-training ViSoBERT trên review TMĐT chưa gán nhãn, data augmentation (thay từ đồng nghĩa, back-translation) | Trung bình |
-| 5 | **So sánh với LLM** | Zero-/few-shot ABSA bằng LLM trên cùng tập test → so sánh chất lượng, chi phí, tốc độ với ViSoBERT/PhoBERT | Thấp |
-| 6 | **Kiểm tra khả năng tổng quát** | Đánh giá trên ngành hàng chưa thấy khi train; hoặc map sang bộ công khai UIT-ViSFD | Trung bình |
-| 7 | **Aspect Sentiment Triplet Extraction (ASTE)** | Trích xuất bộ ba `(cụm khía cạnh, cụm ý kiến, cảm xúc)`, mức nghiên cứu | Cao |
+| 1 | **Dashboard phân tích sản phẩm** | Chức năng 5–6 ở §9 | Thấp |
+| 2 | **So sánh với LLM** | Few-shot trích xuất bộ ba bằng LLM trên cùng tập test → so sánh Triplet F1, chi phí, tốc độ | Thấp |
+| 3 | **Mô hình end-to-end** | Grid Tagging Scheme (GTS, Wu et al. 2020) hoặc span-based: tìm cụm từ và nối trong 1 mô hình → so với pipeline 2 bước | Cao |
+| 4 | **Label Studio ML Backend** | Chạy mô hình như service để Label Studio bôi gợi ý trực tiếp, không cần xuất / nhập file mỗi vòng | Trung bình |
+| 5 | **Cải tiến mô hình** | Thêm CRF trên ViSoBERT, ensemble ViSoBERT + PhoBERT, continued pre-training ViSoBERT trên review chưa gán nhãn, tăng cường dữ liệu | Trung bình |
+| 6 | **Kiểm tra khả năng tổng quát** | Đánh giá trên ngành hàng chưa thấy khi train | Trung bình |
+| 7 | **Quy về danh mục khía cạnh cố định** | Map chủ đề (§7.5) về 7 danh mục (chất lượng, giá, giao hàng, đóng gói, dịch vụ, chính hãng, chung) → đối chiếu với các bộ ABSA công khai như UIT-ViSFD | Trung bình |
 
 ---
 
-## 11. Cấu trúc thư mục đề xuất
+## 11. Cấu trúc thư mục
 
 ```
 .
 ├── data/
-│   ├── raw/              # dữ liệu crawl thô
-│   ├── labeled/          # export Label Studio + bảng phẳng
-│   └── processed/        # đã tiền xử lý, chia train/val/test
+│   ├── raw/              # dữ liệu crawl thô (không commit)
+│   ├── labeled/          # aste_<split>.jsonl, bio_<split>.txt
+│   └── processed/        # văn bản đã làm sạch lớp 1, danh sách test/val
 ├── labeling/
-│   ├── label_config.xml
+│   ├── label_config.xml       # cụm từ + quan hệ (§5.1)
 │   ├── guideline.md
-│   ├── aspect_keywords.json   # từ điển từ khoá khía cạnh (pre-annotation + baseline)
-│   ├── preannotate.py         # gợi ý nhãn bằng từ khoá (đợt 1)
+│   ├── lexicon.json           # từ điển khía cạnh / ý kiến / phủ định / mức độ (gợi ý + baseline luật)
+│   ├── preannotate.py         # bôi sẵn cụm từ + quan hệ bằng từ điển (đợt 1)
 │   ├── split_data.py          # chọn & đóng băng test/val
-│   ├── active_learning.py     # chọn mẫu + gợi ý nhãn bằng mô hình (đợt 2)
+│   ├── active_learning.py     # chọn câu + bôi sẵn bằng mô hình (đợt 2)
 │   ├── make_tasks.py          # chia câu thành file import cho từng người (chính + chéo)
-│   ├── kappa.py               # gộp export, tính Cohen's/Fleiss' Kappa, xuất câu bị lệch
-│   ├── ls_common.py           # hằng số dùng chung (7 khía cạnh, mã nhãn 0–3)
-│   └── ls_to_table.py         # JSON Label Studio → bảng phẳng
+│   ├── agreement.py           # gộp export, đo độ đồng thuận, xuất câu bị lệch
+│   ├── ls_common.py           # đọc kết quả Label Studio → cụm từ / bộ ba / BIO
+│   ├── ls_to_dataset.py       # export Label Studio → aste_*.jsonl + bio_*.txt
+│   ├── tasks/                 # file import (không commit, bản gốc trên Drive)
+│   └── exports/               # file export (không commit, bản gốc trên Drive)
 ├── notebooks/
 │   ├── 01_crawling.ipynb
 │   ├── 02_eda.ipynb
 │   ├── 03_preprocessing.ipynb
-│   ├── 04_ml_models.ipynb
-│   ├── 05_transformer_absa.ipynb   # ViSoBERT & PhoBERT (đổi model qua config)
-│   ├── 06_evaluation.ipynb         # 3 cấp metrics + learning curve
-│   └── 07_explainability.ipynb     # LIME / SHAP, deletion test
+│   ├── 04_ml_models.ipynb          # luật, CRF, LR/SVM/RF nối quan hệ
+│   ├── 05_deep_learning.ipynb      # BiLSTM-CRF, ViSoBERT & PhoBERT tagger + pair
+│   ├── 06_evaluation.ipynb         # 3 cấp metrics, phân tích theo khoảng cách, learning curve
+│   ├── 07_explainability.ipynb     # trọng số CRF, SHAP/LIME, deletion test
+│   └── 08_aspect_clustering.ipynb  # gom nhóm khía cạnh & đặt tên chủ đề
 ├── src/
-│   ├── crawler/          # tiki_crawler.py, shopee_crawler.py
-│   ├── preprocessing/    # cleaner.py, teencode_dict.json, stopwords.txt
-│   ├── models/           # ml_absa.py, transformer_absa.py, predict.py
-│   ├── evaluation/       # absa_metrics.py
-│   ├── explain/          # lime_shap.py (wrapper predict_proba theo từng khía cạnh), highlight.py
+│   ├── crawler/          # tiki_crawler.py
+│   ├── preprocessing/    # cleaner.py (lớp 1), tokenizer.py (tách từ + căn chỉnh BIO), teencode_dict.json
+│   ├── models/           # rule_baseline.py, crf_tagger.py, ml_pairing.py, bilstm_crf.py,
+│   │                     # transformer_tagger.py, transformer_pairing.py, predict.py
+│   ├── clustering/       # aspect_clustering.py
+│   ├── evaluation/       # aste_metrics.py
+│   ├── explain/          # lime_shap.py, highlight.py
 │   └── utils/
-├── models/               # model đã train (không commit file lớn)
+├── models/               # model đã train, aspect_topics.json (không commit file lớn)
 ├── app/
 │   └── streamlit_app.py
-├── reports/              # hình EDA, bảng kết quả, báo cáo
+├── reports/              # figures/, agreement/, bảng kết quả, báo cáo
 ├── requirements.txt
 └── README.md
 ```
@@ -581,97 +665,90 @@ Sắp theo thứ tự ưu tiên (giá trị cao, công sức hợp lý trước)
 
 ## 12. Công cụ & thư viện
 
-- **Crawl & scrape:** `requests` (Tiki API JSON); `selenium` / `playwright` chỉ khi cần bổ sung Shopee/Lazada
+- **Crawl & scrape:** `requests`
 - **Gán nhãn:** `label-studio`, `label-studio-ml` (nâng cao)
-- **NLP tiếng Việt:** `underthesea`, `pyvi`, `py_vncorenlp`
-- **ML:** `scikit-learn`, `xgboost`, `imbalanced-learn`, `iterative-stratification`
-- **DL:** `torch`, `transformers`, `datasets`
-- **Giải thích mô hình:** `lime`, `shap`
+- **NLP tiếng Việt:** `underthesea` (POS, tách từ), `py_vncorenlp` (cho PhoBERT)
+- **ML:** `scikit-learn`, `sklearn-crfsuite`, `xgboost`
+- **DL:** `torch`, `transformers`, `datasets`, `pytorch-crf` (BiLSTM-CRF / lớp CRF)
+- **Đánh giá:** `seqeval`
+- **Phân cụm:** `scikit-learn` (Agglomerative, KMeans), `hdbscan`
+- **Giải thích mô hình:** `eli5` (CRF), `shap`, `lime`, `captum`
 - **EDA/Visualization:** `pandas`, `matplotlib`, `seaborn`, `wordcloud`, `plotly`
-- **App:** `streamlit`
+- **App:** `streamlit`, `st-annotated-text` (bôi màu cụm từ)
 
 ---
 
-## 13. Kế hoạch thực hiện (gợi ý ~9 tuần)
+## 13. Kế hoạch thực hiện (~9 tuần)
 
 | Tuần | Công việc | Sản phẩm |
 |---|---|---|
-| 1 | Chốt schema khía cạnh; crawl & scrape dữ liệu (crawler đã viết và chạy thử xong) | `tiki_crawler.py`, ~60.000–80.000 review thô |
-| 2 | EDA dữ liệu thô, viết guideline, pilot gán nhãn 200 mẫu | Notebook EDA, `guideline.md`, schema đã chốt |
-| 3 | **Đợt 1a:** gán **test 1.000** + gán chéo 30%. *Song song:* pipeline tiền xử lý, `split_data.py`, `ls_to_table.py` | Test đóng băng, Kappa của test |
-| 4 | **Đợt 1b:** gán **val 800 + train 1.200** + gán chéo 15%. **Điểm kiểm tra:** phân bố 21 cặp, mô hình ban đầu (SVM + ViSoBERT), viết `active_learning.py` | Baseline đầu tiên trên val, chốt số mẫu đợt 2 |
-| 5 | **Đợt 2:** 3 vòng active learning × ~1.000 (mỗi vòng ~2 ngày, train lại sau mỗi vòng). *Song song:* EDA sau gán nhãn, keyword baseline, NB/LR/SVM/RF (Cách A & B) | **Bộ dữ liệu cuối ~6.000**, kết quả ML |
-| 6 | ViSoBERT & PhoBERT (multi-task, sentence-pair); BiLSTM; **learning curve** | Checkpoint DL, bảng so sánh ViSoBERT và PhoBERT, biểu đồ learning curve |
-| 7 | Đánh giá 3 cấp, error analysis; **giải thích mô hình LIME/SHAP**, deletion test | Bảng so sánh, hình giải thích, notebook 07 |
-| 8 | Web app cơ bản (gồm chức năng giải thích); **nâng cao** nếu kịp (ưu tiên #1 → #2 → #3 ở §10) | App chạy được, tính năng nâng cao |
+| 1 | Chốt schema nhãn; crawl & scrape (crawler đã xong); cấu hình Label Studio; từ điển `lexicon.json` v0 | ~60.000–80.000 review thô, Label Studio chạy được |
+| 2 | EDA dữ liệu thô; tiền xử lý lớp 1; guideline; **pilot 100 câu** | Notebook EDA, `guideline.md` v1, schema đã chốt |
+| 3 | **Đợt 1a:** gán **test 600** + gán chéo 30%. *Song song:* `split_data.py`, `ls_to_dataset.py`, `tokenizer.py`, baseline luật | Test đóng băng, độ đồng thuận của test |
+| 4 | **Đợt 1b:** **val 400 + train 600** + gán chéo 15%. **Điểm kiểm tra**; mô hình ban đầu (CRF + SVM, ViSoBERT tagger); `active_learning.py` | Baseline đầu tiên trên val |
+| 5 | **Đợt 2:** 2 vòng active learning × ~700 (mỗi vòng ~2,5 ngày). *Song song:* EDA sau gán nhãn, CRF + LR/SVM/RF hoàn chỉnh | **Bộ dữ liệu cuối ~3.000**, kết quả luật + ML |
+| 6 | BiLSTM-CRF; ViSoBERT & PhoBERT (tagger + pair); **learning curve** | Checkpoint DL, bảng so sánh, learning curve |
+| 7 | Đánh giá 3 cấp, phân tích theo khoảng cách, error analysis; **giải thích mô hình**; **gom nhóm khía cạnh** | Bảng kết quả cuối, hình giải thích, bảng chủ đề |
+| 8 | Web app cơ bản (gồm bôi màu + giải thích); **nâng cao** nếu kịp (ưu tiên #1 → #2 → #3 ở §10) | App chạy được |
 | 9 | Báo cáo, slide, video demo | Bản nộp cuối |
 
-**Phân công gợi ý (nhóm 4 người) trong tuần 3–5:** ~3 người gán nhãn, 1 người phụ trách code (tiền xử lý, chia tập, mô hình ban đầu, vòng active learning, mô hình ML). Nên đổi vai giữa các tuần để ai cũng tham gia gán nhãn và code.
-
 > Nếu chậm tiến độ:
-> - Tuần 5 trễ → **dừng sau vòng active learning 2 (~5.000 mẫu)** và chuyển sang tuần 6. Learning curve (§8.3) sẽ cho thấy dừng ở đó ảnh hưởng nhiều hay ít.
-> - Thiếu thời gian cuối kỳ → bỏ phần nâng cao ở tuần 8, giữ nguyên phần cốt lõi (crawl → gán nhãn → mô hình → đánh giá + giải thích → app cơ bản) vì phần đó đã đáp ứng đủ yêu cầu đồ án.
+> - Tuần 5 trễ → **dừng sau vòng active learning 1 (~2.300 câu)** và chuyển sang tuần 6. Learning curve (§8.3) sẽ cho thấy dừng ở đó ảnh hưởng nhiều hay ít.
+> - Thiếu thời gian cuối kỳ → bỏ phần nâng cao, giữ phần cốt lõi (crawl → gán nhãn → luật + ML + ViSoBERT → đánh giá + giải thích → app cơ bản).
 
 ### 13.1. Ước tính thời gian
 
-*Giả định:* ~6.000 mẫu gán nhãn (train ~4.200, val 800, test 1.000), GPU T4 của Colab/Kaggle, fp16, `max_len=256`. Đây là **ước tính**; số thật có thể lệch khoảng ×2 tuỳ GPU và độ dài câu. Hãy đo thời gian epoch đầu tiên rồi cập nhật lại bảng.
+*Giả định:* ~3.000 bình luận 10–80 từ (train ~2.000, val 400, test 600), GPU T4 của Colab/Kaggle, fp16. Đây là **ước tính**; hãy đo thời gian thật sau tuần 3 và epoch đầu tiên rồi cập nhật.
 
 **a. Công sức con người**
 
 | Bước | Ước tính |
 |---|---|
-| Crawl 60.000–80.000 review (~1 request/giây; crawler đã viết xong) | Máy chạy ~1,5–2 giờ (chạy qua đêm) |
-| Pilot 200 mẫu + chốt guideline | ~4–6 giờ công cả nhóm |
-| Đợt 1: test 1.000 mẫu (gợi ý từ khoá, ~45–60 giây/mẫu) | ~13–17 giờ công |
-| Đợt 1: gán chéo 30% test (300 mẫu) | ~4–5 giờ công |
-| Đợt 1: val + train 2.000 mẫu (~45 giây/mẫu) | ~25 giờ công |
-| Đợt 1: gán chéo 15% (300 mẫu) | ~4 giờ công |
-| Đợt 2: 3 vòng active learning, 3.000 mẫu (sửa gợi ý, ~15–25 giây/mẫu) | ~13–21 giờ công |
-| Đợt 2: kiểm tra 10% không gợi ý (300 mẫu) | ~4 giờ công |
-| **Tổng gán nhãn** | **~65–80 giờ công** → nhóm 4 người: ~16–20 giờ/người, **~6 giờ/người/tuần** trong tuần 3–5 |
+| Crawl 60.000–80.000 review | Máy chạy ~1,5–2 giờ (chạy qua đêm) |
+| Pilot 100 câu × 4 người (~100 giây/câu) + buổi thảo luận | ~15–17 giờ công cả nhóm |
+| Đợt 1: test 600 (gợi ý từ điển, ~90–110 giây/câu) | ~15–18 giờ công |
+| Đợt 1: gán chéo 30% test (180 câu) | ~5 giờ công |
+| Đợt 1: val + train 1.000 (~95 giây/câu) | ~26 giờ công |
+| Đợt 1: gán chéo 15% (150 câu) | ~4 giờ công |
+| Đợt 2: 2 vòng active learning, 1.400 câu (sửa gợi ý, ~40–50 giây/câu) | ~16–20 giờ công |
+| Đợt 2: kiểm tra 10% không gợi ý (140 câu) | ~4 giờ công |
+| **Tổng gán nhãn** | **~85–95 giờ công** → nhóm 4 người: ~21–24 giờ/người, **~7 giờ/người/tuần** trong tuần 3–5 |
 
-→ Đây là **phần tốn thời gian nhất** của đồ án, không phải huấn luyện. Gán gấp đôi dữ liệu (6.000 so với 3.000) chỉ tốn thêm khoảng 1,5 lần công sức, nhờ đợt 2 chỉ cần sửa gợi ý.
+→ Gán nhãn vẫn là **phần tốn thời gian nhất**. Ít câu hơn hướng phân lớp (3.000 so với 6.000) nhưng tổng giờ công tương đương, vì mỗi câu phải bôi cụm từ và nối quan hệ.
 
 **b. Huấn luyện mô hình**
 
 | Mô hình | 1 lần train | Kèm tinh chỉnh / nhiều seed | Phần cứng |
 |---|---|---|---|
-| NB / LR / Linear SVM (7 khía cạnh) | Vài giây | 10–20 phút (GridSearch 5-fold) | CPU |
-| Random Forest / XGBoost | 2–5 phút | 20–40 phút | CPU |
-| BiLSTM + Attention | 5–10 phút | ~1 giờ | GPU (CPU chậm hơn ×3–5) |
-| ViSoBERT / PhoBERT multi-task (8 epoch) | ~10–20 phút (~1,5–2,5 phút/epoch) | 2–3 giờ **mỗi mô hình** | GPU T4 |
-| ViSoBERT / PhoBERT sentence-pair (dữ liệu ×7 ≈ 29.000) | ~50–60 phút (~10 phút/epoch) | 3–4,5 giờ **mỗi mô hình** | GPU T4 |
-| Mô hình ban đầu + 3 vòng active learning | ~15–20 phút mỗi vòng | ~1 giờ tổng | GPU T4 |
-| Learning curve (ViSoBERT, 5 mốc × 3 seed) | — | ~1,5–2 giờ | GPU T4 |
+| Baseline luật | Không cần train (chạy test vài giây) | — | CPU |
+| CRF (2.000 câu) | 1–3 phút | 15–30 phút (lưới `c1`, `c2`) | CPU |
+| LR / Linear SVM nối quan hệ (~10.000–15.000 cặp) | Vài giây | 5–10 phút | CPU |
+| Random Forest / XGBoost nối quan hệ | 1–2 phút | 10–20 phút | CPU |
+| BiLSTM-CRF | 5–10 phút | ~1 giờ | GPU |
+| ViSoBERT / PhoBERT tagger (15 epoch) | ~5–10 phút | ~1–1,5 giờ **mỗi mô hình** | GPU T4 |
+| ViSoBERT / PhoBERT pair (~10.000–15.000 cặp, 5 epoch) | ~15–25 phút | ~1,5–2,5 giờ **mỗi mô hình** | GPU T4 |
+| Mô hình ban đầu + 2 vòng active learning | ~15–20 phút mỗi vòng | ~1 giờ tổng | GPU T4 |
+| Learning curve (ViSoBERT, 5 mốc × 3 seed) | — | ~2–3 giờ | GPU T4 |
 
 **c. Giải thích mô hình**
 
 | Tác vụ | Ước tính |
 |---|---|
-| Hệ số + SHAP linear cho LR/SVM trên toàn tập test | < 1 phút (CPU) |
-| LIME cho ViSoBERT/PhoBERT, 200 mẫu × 1.000 mẫu nhiễu | ~20–35 phút mỗi mô hình (GPU) |
-| SHAP Partition cho ViSoBERT/PhoBERT, 200 mẫu | ~20–40 phút mỗi mô hình (GPU) |
-| Deletion test | ~5–10 phút |
-| 1 lần giải thích trong app (LIME ~300 mẫu nhiễu, CPU) | ~15–45 giây (SVM: tức thì) |
+| Trọng số CRF, hệ số + SHAP linear cho LR/SVM | < 1 phút (CPU) |
+| LIME / SHAP cho ViSoBERT pair, 150 bộ ba | ~20–40 phút mỗi mô hình (GPU) |
+| Integrated Gradients cho tagger (tuỳ chọn) | ~10–20 phút (GPU) |
+| 1 lần giải thích trong app (LIME ~300 mẫu nhiễu, CPU) | ~15–30 giây (SVM: tức thì) |
 
 **d. Suy luận (dự đoán)**
 
-| Tác vụ | ML (SVM/LR) | Transformer multi-task | Sentence-pair |
-|---|---|---|---|
-| 1 bình luận, CPU | < 10 ms | ~50–150 ms | ~0,5–1 giây |
-| 1.000 bình luận, CPU | ~1 giây | ~1–2 phút | ~10 phút |
-| 1.000 bình luận, GPU | — | ~5–10 giây | ~1 phút |
-| Phân tích 1 sản phẩm (~500 review) | crawl 1–2 phút + ~1 giây | crawl 1–2 phút + 30–60 giây | không nên dùng trong app |
+| Tác vụ | Luật / CRF + SVM | ViSoBERT tagger + pair |
+|---|---|---|
+| 1 bình luận, CPU | < 20 ms | ~100–300 ms |
+| 1.000 bình luận, CPU | ~5–10 giây | ~3–5 phút |
+| 1.000 bình luận, GPU | — | ~15–30 giây |
+| Phân tích 1 sản phẩm (~500 review) | crawl 1–2 phút + vài giây | crawl 1–2 phút + 1–2 phút |
 
-→ App dùng **mô hình multi-task** (chạy được trên CPU, deploy miễn phí). Sentence-pair chỉ dùng để so sánh trong báo cáo.
-
-**e. Tổng ngân sách GPU:** active learning ~1 giờ + huấn luyện ~12–17 giờ + learning curve ~1,5–2 giờ + giải thích mô hình ~1,5–2,5 giờ → **~15–22 giờ**, rải trong tuần 4–7. Kaggle cho ~30 giờ GPU/tuần nên đủ; nếu thiếu thì dùng `max_len=128` hoặc chỉ chạy sentence-pair cho ViSoBERT. Colab free hay ngắt phiên nên **lưu checkpoint lên Drive sau mỗi epoch**.
-
-**Mẹo tiết kiệm thời gian:**
-- Xem phân bố độ dài ở bước EDA; nếu đa số review < 100 từ thì dùng `max_len=128` (nhanh gấp khoảng 2 lần).
-- Thử tham số với multi-task trước vì rẻ hơn; sentence-pair chỉ chạy với bộ tham số đã tốt.
-- Chỉ chạy 3 seed cho cấu hình tốt nhất.
-- LIME/SHAP chỉ chạy trên mẫu phân tầng (100–200 mẫu), không chạy trên toàn bộ tập test.
+**e. Tổng ngân sách GPU:** ~**10–15 giờ**, rải trong tuần 4–7. Kaggle cho ~30 giờ GPU/tuần nên đủ. Colab free hay ngắt phiên nên **lưu checkpoint lên Drive sau mỗi epoch**.
 
 ---
 
@@ -679,31 +756,35 @@ Sắp theo thứ tự ưu tiên (giá trị cao, công sức hợp lý trước)
 
 | Rủi ro | Hướng xử lý |
 |---|---|
-| Gán nhãn ABSA lâu, dễ lệch giữa các thành viên | Pilot trước, guideline có nhiều ví dụ, pre-annotation từ khoá, đo Kappa từng khía cạnh |
-| Gán nhãn đợt 2 bị trễ | Dừng sau vòng active learning 2 (~5.000 mẫu); dùng learning curve để chứng minh mức dữ liệu đó đã đủ hay chưa |
-| Người gán "bấm theo" gợi ý của mô hình (thiên lệch) | Test chỉ dùng gợi ý từ khoá; 10% mẫu mỗi vòng gán lại không có gợi ý; theo dõi tỉ lệ giữ nguyên gợi ý (cao bất thường là dấu hiệu cần nhắc nhở) |
-| Active learning làm train lệch phân bố | 10% mẫu chọn ngẫu nhiên mỗi vòng; val/test giữ phân bố tự nhiên; dùng class weights |
-| Một số khía cạnh quá hiếm (ví dụ `PACKAGING` Tiêu cực) | Lấy mẫu có chủ đích bằng từ khoá; gộp khía cạnh; sentence-pair; class weights |
-| Bình luận ngắn chỉ có `GENERAL` | Lọc ưu tiên bình luận ≥ 10 từ khi chọn mẫu gán nhãn |
-| ~50% review không có nội dung, chỉ ~25% có ≥ 10 từ | Crawl 60.000–80.000 review thô; nếu vẫn thiếu thì thêm ngành hàng (laptop, thời trang nam, sách) hoặc hạ ngưỡng xuống ≥ 5 từ |
-| Bị chặn khi crawl | Request tuần tự ~1 giây/lần, tự chờ và thử lại khi gặp 429/5xx, chạy tiếp được sau khi dừng; tăng `--delay` nếu vẫn bị chặn |
-| Tiki đổi API (API không chính thức) | Tìm lại endpoint bằng F12 → Network (§3.2); crawl sớm (tuần 1) và lưu bản dữ liệu thô lên Drive |
-| Thiếu GPU | Colab / Kaggle; fp16; giảm `max_len` |
-| Teencode, sai chính tả | ViSoBERT xử lý trực tiếp; với ML/PhoBERT thì mở rộng từ điển chuẩn hoá |
-| LIME/SHAP cho transformer chậm trong app | Giảm số mẫu nhiễu (~300), cache kết quả, hiển thị thanh tiến trình; mặc định giải thích bằng SVM (tức thì) |
-| Giải thích LIME/SHAP không ổn định (chạy lại cho kết quả khác) | Cố định seed, tăng số mẫu nhiễu khi phân tích cho báo cáo, đối chiếu LIME với SHAP, chạy deletion test |
-| PhoBERT cần VnCoreNLP (Java) khi triển khai app | Nếu ViSoBERT đạt kết quả tương đương hoặc tốt hơn → dùng ViSoBERT trong app |
+| Gán nhãn cụm từ chậm, mỗi người bôi ranh giới một kiểu | Pilot trước; guideline nhiều ví dụ; `granularity="word"`; gợi ý bằng từ điển; báo cáo cả F1 khớp chính xác và khớp một phần |
+| Quên nối quan hệ (mọi ý kiến thành khía cạnh ẩn) | `agreement.py` báo số khía cạnh ẩn mỗi người; tỉ lệ cao bất thường → nhắc nhở |
+| Văn bản bị sửa sau khi gán → lệch vị trí cụm từ | Tiền xử lý **lớp 1 cố định trước khi gán**; lớp 2 chỉ xử lý trên từng từ (§6) |
+| PhoBERT tách từ làm lệch căn chỉnh nhãn | Ánh xạ nhãn theo âm tiết đầu của từ ghép; viết test cho hàm căn chỉnh; nếu vướng thì ưu tiên ViSoBERT (không tách từ) |
+| Gán nhãn đợt 2 bị trễ | Dừng sau vòng 1 (~2.300 câu); dùng learning curve để chứng minh mức dữ liệu đó đủ hay chưa |
+| Người gán "bấm theo" gợi ý của mô hình | Test chỉ dùng gợi ý từ điển; 10% mỗi vòng gán lại không có gợi ý; theo dõi tỉ lệ giữ nguyên gợi ý |
+| Ý kiến Tiêu cực / Trung lập quá ít (87% review là 5 sao) | Phân tầng lấy thêm câu 1–3 sao; active learning ưu tiên câu "khó"; class weights |
+| Cặp "không nối" nhiều hơn hẳn cặp "nối" (bước 2) | `class_weight`, chỉnh ngưỡng xác suất trên val |
+| ~50% review không có nội dung | Crawl 60.000–80.000 review thô; thêm ngành hàng nếu thiếu |
+| Bị chặn khi crawl / Tiki đổi API | Request tuần tự, tự chờ và thử lại; tìm lại endpoint bằng F12 (§3.2); crawl sớm và lưu lên Drive |
+| Thiếu GPU | Colab / Kaggle; fp16; `max_len=128`; CRF + SVM vẫn chạy được trên CPU |
+| Gom nhóm khía cạnh ra chủ đề lẫn lộn | Lọc cụm hiếm (< 3 lần); người kiểm tra 300 cụm phổ biến; cho phép sửa tay bảng `aspect_topics.json` |
 
 ---
 
 ## 15. Tài liệu tham khảo
 
-- Pontiki, M. et al. (2016). *SemEval-2016 Task 5: Aspect Based Sentiment Analysis.*
-- Sun, C., Huang, L., & Qiu, X. (2019). *Utilizing BERT for Aspect-Based Sentiment Analysis via Constructing Auxiliary Sentence.* NAACL.
+- Hu, M., & Liu, B. (2004). *Mining and Summarizing Customer Reviews.* KDD. (trích xuất ý kiến dựa trên luật)
+- Qiu, G., Liu, B., Bu, J., & Chen, C. (2011). *Opinion Word Expansion and Target Extraction through Double Propagation.* Computational Linguistics.
+- Lafferty, J., McCallum, A., & Pereira, F. (2001). *Conditional Random Fields: Probabilistic Models for Segmenting and Labeling Sequence Data.* ICML.
+- Lample, G. et al. (2016). *Neural Architectures for Named Entity Recognition* (BiLSTM-CRF). NAACL.
+- Pontiki, M. et al. (2014). *SemEval-2014 Task 4: Aspect Based Sentiment Analysis.*
+- Peng, H. et al. (2020). *Knowing What, How and Why: A Near Complete Solution for Aspect-Based Sentiment Analysis* (đề xuất bài toán ASTE). AAAI.
+- Xu, L. et al. (2020). *Position-Aware Tagging for Aspect Sentiment Triplet Extraction* (bộ ASTE-Data-V2). EMNLP.
+- Wu, Z. et al. (2020). *Grid Tagging Scheme for Aspect-oriented Fine-grained Opinion Extraction.* Findings of EMNLP.
 - Nguyen, D. Q., & Nguyen, A. T. (2020). *PhoBERT: Pre-trained language models for Vietnamese.* Findings of EMNLP.
-- Luc Phan, L. et al. (2021). *SA2SL: From Aspect-Based Sentiment Analysis to Social Listening System for Business Intelligence* (bộ dữ liệu **UIT-ViSFD**).
-- Nguyen, H. T. M. et al. (2018). *VLSP Shared Task: Sentiment Analysis* (VLSP 2018 ABSA — nhà hàng, khách sạn).
 - Nguyen, Q. N. et al. (2023). *ViSoBERT: A Pre-Trained Language Model for Vietnamese Social Media Text Processing.* EMNLP.
-- Ribeiro, M. T., Singh, S., & Guestrin, C. (2016). *"Why Should I Trust You?": Explaining the Predictions of Any Classifier* (LIME). KDD.
+- Luc Phan, L. et al. (2021). *SA2SL: From Aspect-Based Sentiment Analysis to Social Listening System for Business Intelligence* (bộ UIT-ViSFD, tham khảo về miền dữ liệu TMĐT tiếng Việt).
+- Ribeiro, M. T., Singh, S., & Guestrin, C. (2016). *"Why Should I Trust You?"* (LIME). KDD.
 - Lundberg, S. M., & Lee, S.-I. (2017). *A Unified Approach to Interpreting Model Predictions* (SHAP). NeurIPS.
+- Sundararajan, M., Taly, A., & Yan, Q. (2017). *Axiomatic Attribution for Deep Networks* (Integrated Gradients). ICML.
 - Label Studio Documentation — https://labelstud.io/guide/

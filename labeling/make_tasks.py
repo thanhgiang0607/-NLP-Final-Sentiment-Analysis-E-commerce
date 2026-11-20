@@ -1,26 +1,26 @@
 """Chia câu thành các file import Label Studio cho từng người (người chạy: C).
 
 Mỗi người nhận 2 file: `<đợt>_<người>_chinh.json` (phần câu của mình) và
-`<đợt>_<người>_cheo.json` (một phần câu của người khác, để tính Kappa).
+`<đợt>_<người>_cheo.json` (một phần câu của người khác, để đo độ đồng thuận).
 Kèm `<đợt>_manifest.csv` ghi câu nào do ai gán chính / ai gán chéo.
 
 Đầu vào (--input) là một trong hai dạng:
-  - CSV có cột `review_id`, `content` (thêm `rating`, `category` nếu có). Nếu CSV có
-    cột của 7 khía cạnh (QUALITY, PRICE, ... giá trị 0–3) thì dùng làm nhãn gợi ý.
-  - JSON danh sách task Label Studio (ví dụ đầu ra của preannotate.py), mỗi task có
-    `data.review_id`, `data.content`, có thể có `predictions`.
+  - CSV có cột `review_id`, `content` (thêm `rating`, `category` nếu có): không có gợi ý.
+  - JSON danh sách task Label Studio (đầu ra của preannotate.py hoặc active_learning.py),
+    mỗi task có `data.review_id`, `data.content`, có thể có `predictions` (cụm từ + quan hệ
+    được bôi sẵn làm gợi ý).
 
 Ví dụ:
-    # Tuần 3: test 1.000 câu, gán chéo 75 câu mỗi người theo vòng A→B→C→D→A
+    # Tuần 3: test 600 câu, gán chéo 45 câu mỗi người theo vòng A→B→C→D→A
     python labeling/make_tasks.py --input data/processed/test_preannotated.json --phase w3 \\
-        --quota A=200 B=300 C=250 D=250 --cross-n 75
+        --quota A=120 B=180 C=150 D=150 --cross-n 45
 
-    # Tuần 2: pilot, cả 4 người gán cùng 200 câu
-    python labeling/make_tasks.py --input data/processed/pilot.csv --phase w2 --pilot --people A B C D
+    # Tuần 2: pilot, cả 4 người gán cùng 100 câu
+    python labeling/make_tasks.py --input data/processed/pilot.json --phase w2 --pilot
 
-    # Tuần 5 (một vòng AL): A, B, D sửa nháp; C gán lại 100 câu KHÔNG có nháp để kiểm tra
-    python labeling/make_tasks.py --input data/processed/al_round1.json --phase w5_vong1 \\
-        --quota A=330 B=340 D=330 --checker C --check-n 100
+    # Tuần 5 (một vòng AL): A, B, D sửa nháp; C gán lại 70 câu KHÔNG có nháp để kiểm tra
+    python labeling/make_tasks.py --input data/processed/al_vong1.json --phase w5_vong1 \\
+        --quota A=230 B=240 D=230 --checker C --check-n 70
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from ls_common import ASPECTS, codes_to_result, read_json, task_filename, write_json
+from ls_common import read_json, task_filename, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "labeling" / "tasks"
@@ -40,20 +40,13 @@ DEFAULT_OUT = ROOT / "labeling" / "tasks"
 
 # ---------- đọc đầu vào ----------
 
-def load_tasks(path: Path, hint_name: str) -> list[dict]:
+def load_tasks(path: Path) -> list[dict]:
     if path.suffix.lower() == ".json":
         # cho phép cả JSON phẳng [{review_id, content, ...}]
         tasks = [t if "data" in t else {"data": t} for t in read_json(path)]
     else:
-        tasks = []
         with path.open(encoding="utf-8-sig", newline="") as f:
-            for row in csv.DictReader(f):
-                hints = {a: int(float(row[a])) for a in ASPECTS if (row.get(a) or "").strip()}
-                data = {k: v for k, v in row.items() if k not in ASPECTS}
-                task = {"data": data}
-                if any(hints.values()):
-                    task["predictions"] = [{"model_version": hint_name, "result": codes_to_result(hints)}]
-                tasks.append(task)
+            tasks = [{"data": row} for row in csv.DictReader(f)]
 
     clean, seen = [], set()
     for t in tasks:
@@ -131,22 +124,21 @@ def main() -> None:
     ap.add_argument("--phase", required=True, help="tên đợt, ví dụ w3, w4, w5_vong1 (không có dấu cách)")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT, help="thư mục gốc; file ghi vào <out>/<phase>/")
     ap.add_argument("--quota", nargs="+", help="số câu gán chính mỗi người, ví dụ A=200 B=300 C=250 D=250")
-    ap.add_argument("--cross-n", type=int, default=75, help="số câu gán chéo mỗi người (chế độ vòng)")
+    ap.add_argument("--cross-n", type=int, default=45, help="số câu gán chéo mỗi người (chế độ vòng)")
     ap.add_argument("--rotation", nargs="+", default=["A", "B", "C", "D"], help="thứ tự vòng gán chéo")
     ap.add_argument("--checker", help="thay cho vòng: 1 người gán lại câu của tất cả người khác")
-    ap.add_argument("--check-n", type=int, default=100, help="số câu người kiểm tra gán lại")
+    ap.add_argument("--check-n", type=int, default=70, help="số câu người kiểm tra gán lại")
     ap.add_argument("--cross-hints", action="store_true",
                     help="giữ gợi ý trong file chéo (mặc định BỎ để người gán chéo không bị dẫn dắt)")
     ap.add_argument("--pilot", action="store_true", help="mọi người gán cùng toàn bộ câu đầu vào")
     ap.add_argument("--people", nargs="+", default=["A", "B", "C", "D"], help="dùng với --pilot")
-    ap.add_argument("--hint-name", default="keyword", help="model_version cho gợi ý lấy từ CSV")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
     if "_" in args.phase and args.phase.split("_")[-1] in {"chinh", "cheo", "pilot"}:
         sys.exit("--phase không được kết thúc bằng _chinh/_cheo/_pilot")
     rng = random.Random(args.seed)
-    tasks = load_tasks(args.input, args.hint_name)
+    tasks = load_tasks(args.input)
     out_dir = args.out / args.phase
     print(f"Đầu vào: {len(tasks)} câu ({sum(1 for t in tasks if t.get('predictions'))} có gợi ý)")
 
