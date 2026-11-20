@@ -4,8 +4,11 @@ Ví dụ:
     # Chạy thử nhỏ: 2 ngành hàng, mỗi ngành 3 sản phẩm, tối đa 40 review/sản phẩm
     python src/crawler/tiki_crawler.py --categories phone beauty --max-products 3 --max-reviews 40
 
-    # Chạy thật
+    # Chạy thật (6 ngành mặc định)
     python src/crawler/tiki_crawler.py --max-products 150 --max-reviews 300
+
+    # Tất cả 24 ngành
+    python src/crawler/tiki_crawler.py --categories all --max-products 60 --max-reviews 300
 
 Đầu ra (ghi nối tiếp, chạy lại sẽ bỏ qua sản phẩm đã crawl):
     data/raw/tiki_products.jsonl
@@ -44,7 +47,23 @@ CATEGORIES = {
     "fashion_men": (915, "Thời trang nam"),
     "books": (8322, "Nhà sách Tiki"),
     "grocery": (4384, "Bách hóa Online"),
+    "toys_baby": (2549, "Đồ Chơi - Mẹ & Bé"),
+    "digital": (1815, "Thiết Bị Số - Phụ Kiện Số"),
+    "vehicles": (8594, "Ô Tô - Xe Máy - Xe Đạp"),
+    "sports": (1975, "Thể Thao - Dã Ngoại"),
+    "shoes_men": (1686, "Giày - Dép nam"),
+    "electronics": (4221, "Điện Tử - Điện Lạnh"),
+    "shoes_women": (1703, "Giày - Dép nữ"),
+    "camera": (1801, "Máy Ảnh - Máy Quay Phim"),
+    "fashion_acc": (27498, "Phụ kiện thời trang"),
+    "food": (44792, "NGON"),
+    "watches_jewelry": (8371, "Đồng hồ và Trang sức"),
+    "bags_luggage": (6000, "Balo và Vali"),
+    "bags_women": (976, "Túi thời trang nữ"),
+    "bags_men": (27616, "Túi thời trang nam"),
+    "home_care": (15078, "Chăm sóc nhà cửa"),
 }
+# Không lấy: "Voucher - Dịch vụ" (không phải sản phẩm), "Cross Border" (trùng sản phẩm với các ngành khác)
 DEFAULT_CATEGORIES = ["phone", "beauty", "home", "appliance", "fashion_women", "grocery"]
 
 HEADERS = {
@@ -231,13 +250,16 @@ def export_csv() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--categories", nargs="+", default=DEFAULT_CATEGORIES, choices=CATEGORIES.keys())
+    parser.add_argument("--categories", nargs="+", default=DEFAULT_CATEGORIES,
+                        choices=[*CATEGORIES.keys(), "all"], help="danh sách ngành, hoặc 'all' để lấy cả 24 ngành")
     parser.add_argument("--max-products", type=int, default=100, help="số sản phẩm mỗi ngành hàng")
     parser.add_argument("--max-reviews", type=int, default=300, help="số review tối đa mỗi sản phẩm")
     parser.add_argument("--min-reviews", type=int, default=5, help="bỏ sản phẩm có ít review hơn")
     parser.add_argument("--delay", type=float, default=1.0, help="giây chờ giữa các request")
     parser.add_argument("--export-csv", action="store_true", help="chỉ gộp JSONL thành CSV")
     args = parser.parse_args()
+    if "all" in args.categories:
+        args.categories = list(CATEGORIES)
 
     if args.export_csv:
         export_csv()

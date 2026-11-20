@@ -46,6 +46,9 @@ MODELS = {
 CAT_ICONS = {
     "phone": "📱", "laptop": "💻", "beauty": "💄", "home": "🏠", "appliance": "🍳",
     "fashion_women": "👗", "fashion_men": "👔", "books": "📚", "grocery": "🛒",
+    "toys_baby": "🧸", "digital": "🎧", "vehicles": "🛵", "sports": "⚽", "shoes_men": "👞",
+    "electronics": "📺", "shoes_women": "👠", "camera": "📷", "fashion_acc": "🕶️", "food": "🍜",
+    "watches_jewelry": "⌚", "bags_luggage": "🧳", "bags_women": "👜", "bags_men": "💼", "home_care": "🧽",
 }
 
 # ---------------------------------------------------------------------------
