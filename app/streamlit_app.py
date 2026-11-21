@@ -43,6 +43,7 @@ MODELS = {
     "BiLSTM-CRF": False,
     "ViSoBERT": False,
 }
+TIKI_LOGO = "https://salt.tikicdn.com/ts/upload/0e/07/78/ee828743c9afa9792cf20d75995e134e.png"
 CAT_ICONS = {
     "phone": "📱", "laptop": "💻", "beauty": "💄", "home": "🏠", "appliance": "🍳",
     "fashion_women": "👗", "fashion_men": "👔", "books": "📚", "grocery": "🛒",
@@ -66,6 +67,10 @@ st.markdown(
 }
 .stApp{background:var(--bg);}
 header[data-testid="stHeader"]{background:transparent; height:0;}
+/* thanh công cụ trong suốt của Streamlit nằm đè lên ô tìm kiếm: cho chuột đi xuyên qua, trừ các nút */
+header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stToolbar"] *{pointer-events:none;}
+header[data-testid="stHeader"] button, header[data-testid="stHeader"] a,
+[data-testid="stToolbar"] button, [data-testid="stToolbar"] a{pointer-events:auto;}
 .block-container{padding-top:0 !important; max-width:1280px;}
 a, a:hover{text-decoration:none !important;}
 
@@ -75,6 +80,16 @@ a, a:hover{text-decoration:none !important;}
 .brand{display:flex; flex-direction:column; align-items:center; color:var(--blue) !important; line-height:1;}
 .brand b{font-size:26px; font-weight:800; letter-spacing:-0.5px;}
 .brand small{font-size:11px; font-weight:700; color:var(--blue-dark); margin-top:3px;}
+.cobrand{display:flex; align-items:center; gap:12px;}
+.cobrand .x{color:#C4C4CF; font-size:20px; font-weight:300;}
+.tikilogo{display:flex; flex-direction:column; align-items:center; line-height:1;}
+.tikilogo img{height:34px; width:auto; display:block;}
+.tikilogo small{font-size:10px; color:var(--muted); margin-top:3px;}
+.viewtiki{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--blue); color:var(--blue) !important;
+  border-radius:6px; padding:5px 10px; font-size:13px; margin-top:12px;}
+.viewtiki img{height:16px;}
+.viewtiki:hover{background:var(--blue-soft);}
+.footer img{height:22px; vertical-align:middle; margin:0 4px;}
 .search{flex:1; min-width:260px; display:flex; border:1px solid #DDDDE3; border-radius:8px; overflow:hidden;}
 .search span{padding:0 0 0 14px; display:flex; align-items:center; color:var(--muted);}
 .search input{flex:1; border:none; outline:none; padding:9px 12px; font-size:14px; background:#fff; color:var(--text);}
@@ -200,10 +215,15 @@ def topbar() -> None:
         f"""
 <div class="topbar">
   <div class="toprow">
-    <a class="brand" target="_self" href="?"><b>Review Insight</b><small>Khen gì · Chê gì</small></a>
+    <div class="cobrand">
+      <a class="tikilogo" href="https://tiki.vn" target="_blank" title="Nguồn dữ liệu: Tiki">
+        <img src="{TIKI_LOGO}" alt="Tiki"><small>nguồn dữ liệu</small></a>
+      <span class="x">×</span>
+      <a class="brand" target="_self" href="?"><b>Review Insight</b><small>Khen gì · Chê gì</small></a>
+    </div>
     <form class="search" method="get" action="" target="_self">
       <span>🔍</span>
-      <input name="q" value="{html.escape(query)}" placeholder="Tìm sản phẩm, hoặc dán link sản phẩm Tiki để phân tích review..." />
+      <input name="q" placeholder="{html.escape(query) if query else 'Tìm sản phẩm, hoặc dán link sản phẩm Tiki để phân tích review...'}" />
       <button type="submit">Tìm kiếm</button>
     </form>
     <div class="navlinks">{links}</div>
@@ -216,8 +236,8 @@ def topbar() -> None:
 
 def footer() -> None:
     st.markdown(
-        '<div class="footer">Review Insight · Đồ án NLP: Trích xuất ý kiến (Aspect Sentiment Triplet Extraction) '
-        'từ đánh giá sản phẩm.<br>Dữ liệu lấy từ Tiki qua API công khai, chỉ dùng cho mục đích học tập. '
+        f'<div class="footer">Review Insight · Đồ án NLP: Trích xuất ý kiến (Aspect Sentiment Triplet Extraction) '
+        f'từ đánh giá sản phẩm.<br>Dữ liệu lấy từ <img src="{TIKI_LOGO}" alt="Tiki"> qua API công khai, chỉ dùng cho mục đích học tập. '
         'Không lưu thông tin người mua.</div>',
         unsafe_allow_html=True,
     )
@@ -457,6 +477,7 @@ def product_page() -> None:
     <div class="muted">{p.get("rating_average") or "–"} {stars_html(p.get("rating_average"))}
       &nbsp;({p.get("review_count") or 0} đánh giá){sold}</div>
     <div class="price">{money(p.get("price"))}{old}</div>
+    <a class="viewtiki" target="_blank" href="https://tiki.vn/p{p["id"]}.html">Xem sản phẩm trên <img src="{TIKI_LOGO}" alt="Tiki"></a>
     <div class="muted" style="margin-top:10px">Đã phân tích <b>{len(reviews)}</b> review có nội dung ·
       tìm được <b>{len(all_trip)}</b> bộ ba ý kiến · mô hình: <b>{html.escape(st.session_state["model"])}</b></div>
   </div>
