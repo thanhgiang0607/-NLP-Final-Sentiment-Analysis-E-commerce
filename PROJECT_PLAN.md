@@ -128,15 +128,15 @@ Nhóm **không bóc tách HTML** (kiểu tìm thẻ `<div class="review">`). Tha
 
 Có thể dán thử vào trình duyệt, ví dụ: `https://tiki.vn/api/v2/reviews?product_id=1634981&page=1&limit=20`.
 
-**Mã ngành hàng đã kiểm tra:** `1789` Điện thoại – Máy tính bảng · `1846` Laptop · `1520` Làm đẹp – Sức khỏe · `1883` Nhà cửa – Đời sống · `1882` Điện gia dụng · `931` Thời trang nữ · `915` Thời trang nam · `8322` Sách · `4384` Bách hóa Online.
+**Mã ngành hàng:** crawler khai báo **24 ngành** lớn của Tiki (danh sách lấy từ API `api/v2/categories?parent_id=2`, xem `CATEGORIES` trong `src/crawler/tiki_crawler.py`), ví dụ `1789` Điện thoại – Máy tính bảng · `1846` Laptop · `1520` Làm đẹp – Sức khỏe · `1883` Nhà cửa – Đời sống · `8322` Sách · `2549` Đồ chơi – Mẹ & Bé · `1815` Thiết bị số · `44792` NGON (đồ ăn)... Bỏ 2 mục *Voucher – Dịch vụ* (không phải sản phẩm) và *Cross Border* (trùng sản phẩm với các ngành khác).
 
 ### 3.3. Quy trình crawl & scrape
 
 ```
-Với mỗi ngành hàng (6 ngành mặc định)
+Với mỗi ngành hàng (đã chạy: cả 24 ngành, --categories all)
 │
 ├─ [CRAWL] Gọi API listings, trang 1 → 2 → 3 ... đến last_page
-│          → danh sách sản phẩm; bỏ sản phẩm có < 5 đánh giá; tối đa 150 sản phẩm/ngành
+│          → danh sách sản phẩm; bỏ sản phẩm có < 5 đánh giá; tối đa 60 sản phẩm/ngành
 │
 └─ Với mỗi sản phẩm
      ├─ Đã crawl rồi? → bỏ qua (cho phép dừng giữa chừng rồi chạy tiếp)
@@ -173,10 +173,10 @@ Với mỗi ngành hàng (6 ngành mặc định)
 **Cố ý bỏ:** `customer_id`, `created_by` (tên, avatar, khu vực của người mua), ảnh. Lý do: không cần cho bài toán và để bảo vệ thông tin cá nhân.
 
 ### 3.5. Phạm vi & mục tiêu
-- 6 ngành hàng mặc định: điện thoại, làm đẹp, nhà cửa, điện gia dụng, thời trang nữ, bách hóa. Có thể thêm laptop, thời trang nam, sách nếu thiếu dữ liệu.
-- Mục tiêu: **~60.000–80.000 review thô** (~150 sản phẩm × 6 ngành hàng, tối đa 300 review/sản phẩm) → còn **~15.000–20.000 bình luận ≥ 10 từ**.
+- Ban đầu dự tính 6 ngành × 150 sản phẩm (~60.000–80.000 review thô). **Thực tế đã crawl cả 24 ngành × 60 sản phẩm** để dữ liệu đa dạng hơn (khía cạnh của sách, đồ ăn, xe cộ, túi ví... giúp phần gom nhóm khía cạnh §7.5 phong phú hơn). Kết quả ở §3.8.
+- Kết quả: **~110.000 review thô → ~25.600 bình luận 10–80 từ**.
   - Khoảng 3.000 bình luận được gán nhãn (§5).
-  - Phần còn lại (~12.000–17.000) là **kho chưa gán nhãn**, dùng để active learning chọn mẫu, gom nhóm khía cạnh (§7.5) và làm dữ liệu demo cho dashboard.
+  - Phần còn lại (~22.000) là **kho chưa gán nhãn**, dùng để active learning chọn mẫu, gom nhóm khía cạnh (§7.5) và làm dữ liệu demo cho dashboard.
 - **Ưu tiên bình luận 10–80 từ** khi chọn mẫu gán nhãn: bình luận quá ngắn ("ok", "tốt") hầu như không có cụm khía cạnh; bình luận quá dài làm việc bôi cụm từ rất lâu.
 
 ### 3.6. Kết quả chạy thử (215 review, 8 sản phẩm, 3 ngành hàng)
@@ -188,7 +188,7 @@ Với mỗi ngành hàng (6 ngành mặc định)
 | Rating 5 sao | ~87% (1–2 sao chỉ ~4%) | Khi chọn mẫu gán nhãn phải lấy thêm câu 1–3 sao |
 | Spam ("AE qua nhóm mình săn sale...") và tên người trong nội dung | Có xuất hiện | Lọc spam và ẩn tên ở bước tiền xử lý (§6) |
 | Trường `delivery_rating` có sẵn (giao đúng hẹn, thái độ shipper, đóng gói) | ~25% review | Dùng cho EDA và đối chiếu với các bộ ba về giao hàng / đóng gói |
-| Tốc độ | ~1 request/giây, 20 review/request | 60.000–80.000 review ≈ **1,5–2 giờ** chạy máy, nên chạy qua đêm |
+| Tốc độ | ~1 request/giây, 20 review/request | Ước tính 60.000–80.000 review ≈ 1,5–2 giờ. Thực tế 110.000 review (24 ngành) mất **~3,5 giờ** |
 
 ### 3.7. Cách chạy
 
@@ -198,8 +198,9 @@ Script: `src/crawler/tiki_crawler.py`.
 # Chạy thử nhỏ
 python3 src/crawler/tiki_crawler.py --categories phone beauty --max-products 3 --max-reviews 40
 
-# Chạy thật (~1,5–2 giờ; chạy lại sẽ tự bỏ qua sản phẩm đã crawl)
-python3 src/crawler/tiki_crawler.py --max-products 150 --max-reviews 300
+# Chạy thật: cả 24 ngành (~3,5 giờ; chạy lại sẽ tự bỏ qua sản phẩm đã crawl)
+#   -u: in tiến độ ngay (không bị gom khi qua tee); caffeinate -i: Mac không ngủ (Windows: bỏ, dùng powercfg)
+caffeinate -i python3 -u src/crawler/tiki_crawler.py --categories all --max-products 60 --max-reviews 300 2>&1 | tee -a data/raw/crawl_log.txt
 
 # Gộp thành CSV, bỏ trùng
 python3 src/crawler/tiki_crawler.py --export-csv
@@ -207,11 +208,29 @@ python3 src/crawler/tiki_crawler.py --export-csv
 
 | Tham số | Mặc định | Ý nghĩa |
 |---|---|---|
-| `--categories` | 6 ngành mặc định | Chọn ngành hàng (`phone`, `laptop`, `beauty`, `home`, `appliance`, `fashion_women`, `fashion_men`, `books`, `grocery`) |
+| `--categories` | 6 ngành (`phone beauty home appliance fashion_women grocery`) | Danh sách mã ngành (xem `CATEGORIES` trong crawler), hoặc `all` cho cả 24 ngành |
 | `--max-products` | 100 | Số sản phẩm mỗi ngành |
 | `--max-reviews` | 300 | Số đánh giá tối đa mỗi sản phẩm |
 | `--min-reviews` | 5 | Bỏ sản phẩm có ít đánh giá hơn |
 | `--delay` | 1.0 | Số giây chờ giữa các request |
+
+### 3.8. Kết quả crawl thật (23/11)
+
+Lệnh: `--categories all --max-products 60 --max-reviews 300`, chạy liên tục ~3,5 giờ, không gặp lỗi 429.
+
+| Chỉ số | Số liệu |
+|---|---|
+| Ngành hàng / sản phẩm | 24 / 1.380 |
+| Tổng review (đã bỏ trùng `review_id`) | **110.875** |
+| Có nội dung | 51.569 (~47%) |
+| Dài 10–80 từ (đủ chuẩn để gán) | **25.605**, trong đó **4.917 câu 1–3 sao** |
+| Trùng nội dung ("Sản phẩm tốt", "Ok"...) | ~9.500 (bỏ ở tiền xử lý lớp 1, §6) |
+| Rating (review có nội dung) | 1★ 6,7% · 2★ 2,6% · 3★ 4,8% · 4★ 11,6% · 5★ 74,3% |
+
+**Nhận xét:**
+- Dữ liệu đủ chuẩn gấp ~8 lần số câu cần gán (3.000), kho chưa gán nhãn cho active learning và gom nhóm rất dư.
+- Review dài nghiêng về chê nhiều hơn dự tính: trong nhóm 10–80 từ, 1–3 sao chiếm ~19% (so với ~14% trên toàn bộ), nên **đủ câu để lấy dư 1–3 sao** khi chọn test/val (§5.2).
+- Một số ngành rất ít câu đủ chuẩn: Đồ ăn (55), Điện thoại (74, chỉ 4 câu 1–3 sao), Giày dép nữ (229). Khi chọn mẫu: chia **theo tỉ lệ** từng ngành, mỗi ngành tối thiểu ~30–50 câu (ngành thiếu thì lấy hết), không chia đều.
 
 **Đầu ra** (trong `data/raw/`, không commit lên git; chia sẻ cho nhóm qua Google Drive để cả nhóm dùng **cùng một bộ dữ liệu**):
 - `tiki_reviews.jsonl`: dữ liệu gốc, ghi nối tiếp.
@@ -251,23 +270,34 @@ Công cụ: `pandas`, `matplotlib`, `seaborn`, `wordcloud`, `plotly`, `underthes
 
 ### 5.1. Cấu hình giao diện
 
+File đầy đủ (có chú thích): `labeling/label_config.xml`.
+
 ```xml
 <View>
+  <Style>
+    .lsf-main-content .htx-text { font-size: 17px; line-height: 2.1; }
+    .ctx { color: #808089; font-size: 13px; }
+  </Style>
+
+  <View className="ctx">
+    <Header value="Sản phẩm: $product_name" size="6"/>
+    <Header value="Ngành: $category · Đánh giá gốc: $rating sao" size="6"/>
+  </View>
+
+  <Labels name="span" toName="text" showInline="true">
+    <Label value="ASPECT" background="#4C9AFF" hotkey="a" hint="Khía cạnh: đối tượng được nhận xét (áo, chất vải, pin, giao hàng, shop...)"/>
+    <Label value="OP_POS" background="#36B37E" hotkey="p" hint="Ý kiến tích cực, gồm cả từ mức độ đi kèm (rất đẹp, giao nhanh)"/>
+    <Label value="OP_NEU" background="#FFAB00" hotkey="u" hint="Ý kiến trung lập (tạm được, bình thường)"/>
+    <Label value="OP_NEG" background="#FF5630" hotkey="n" hint="Ý kiến tiêu cực, gồm cả từ phủ định (không bền, mỏng quá)"/>
+  </Labels>
+
+  <Text name="text" value="$content" granularity="word"/>
+
   <Relations>
     <Relation value="có_ý_kiến"/>
   </Relations>
 
-  <Labels name="span" toName="text">
-    <Label value="ASPECT" background="#4C9AFF" hotkey="a"/>
-    <Label value="OP_POS" background="#36B37E" hotkey="p"/>
-    <Label value="OP_NEU" background="#FFAB00" hotkey="u"/>
-    <Label value="OP_NEG" background="#FF5630" hotkey="n"/>
-  </Labels>
-
-  <Text name="text" value="$content" granularity="word"/>
-  <Header value="Rating gốc: $rating sao" size="6"/>
-
-  <Choices name="skip" toName="text" choice="single">
+  <Choices name="skip" toName="text" choice="single" showInline="true">
     <Choice value="Spam / vô nghĩa (loại bỏ)"/>
   </Choices>
 </View>
@@ -682,7 +712,7 @@ Triển khai: local, Streamlit Community Cloud hoặc Hugging Face Spaces.
 
 | Tuần | Công việc | Sản phẩm |
 |---|---|---|
-| 1 | Chốt schema nhãn; crawl & scrape (crawler đã xong); cấu hình Label Studio; từ điển `lexicon.json` v0 | ~60.000–80.000 review thô, Label Studio chạy được |
+| 1 | Chốt schema nhãn; crawl & scrape (**xong: 24 ngành, ~110.000 review**); cấu hình Label Studio; từ điển `lexicon.json` v0 | ~110.000 review thô (~25.600 câu 10–80 từ), Label Studio chạy được |
 | 2 | EDA dữ liệu thô; tiền xử lý lớp 1; guideline; **pilot 100 câu** | Notebook EDA, `guideline.md` v1, schema đã chốt |
 | 3 | **Đợt 1a:** gán **test 600** + gán chéo 30%. *Song song:* `split_data.py`, `ls_to_dataset.py`, `tokenizer.py`, baseline luật | Test đóng băng, độ đồng thuận của test |
 | 4 | **Đợt 1b:** **val 400 + train 600** + gán chéo 15%. **Điểm kiểm tra**; mô hình ban đầu (CRF + SVM, ViSoBERT tagger); `active_learning.py` | Baseline đầu tiên trên val |
@@ -704,7 +734,7 @@ Triển khai: local, Streamlit Community Cloud hoặc Hugging Face Spaces.
 
 | Bước | Ước tính |
 |---|---|
-| Crawl 60.000–80.000 review | Máy chạy ~1,5–2 giờ (chạy qua đêm) |
+| Crawl ~110.000 review (24 ngành × 60 sản phẩm) | Máy chạy ~3,5 giờ (thực tế) |
 | Pilot 100 câu × 4 người (~100 giây/câu) + buổi thảo luận | ~15–17 giờ công cả nhóm |
 | Đợt 1: test 600 (gợi ý từ điển, ~90–110 giây/câu) | ~15–18 giờ công |
 | Đợt 1: gán chéo 30% test (180 câu) | ~5 giờ công |
@@ -762,9 +792,9 @@ Triển khai: local, Streamlit Community Cloud hoặc Hugging Face Spaces.
 | PhoBERT tách từ làm lệch căn chỉnh nhãn | Ánh xạ nhãn theo âm tiết đầu của từ ghép; viết test cho hàm căn chỉnh; nếu vướng thì ưu tiên ViSoBERT (không tách từ) |
 | Gán nhãn đợt 2 bị trễ | Dừng sau vòng 1 (~2.300 câu); dùng learning curve để chứng minh mức dữ liệu đó đủ hay chưa |
 | Người gán "bấm theo" gợi ý của mô hình | Test chỉ dùng gợi ý từ điển; 10% mỗi vòng gán lại không có gợi ý; theo dõi tỉ lệ giữ nguyên gợi ý |
-| Ý kiến Tiêu cực / Trung lập quá ít (87% review là 5 sao) | Phân tầng lấy thêm câu 1–3 sao; active learning ưu tiên câu "khó"; class weights |
+| Ý kiến Tiêu cực / Trung lập quá ít (74% review có nội dung là 5 sao) | Phân tầng lấy thêm câu 1–3 sao; active learning ưu tiên câu "khó"; class weights |
 | Cặp "không nối" nhiều hơn hẳn cặp "nối" (bước 2) | `class_weight`, chỉnh ngưỡng xác suất trên val |
-| ~50% review không có nội dung | Crawl 60.000–80.000 review thô; thêm ngành hàng nếu thiếu |
+| ~50% review không có nội dung | Đã xử lý: crawl ~110.000 review thô trên 24 ngành → ~25.600 câu đủ chuẩn |
 | Bị chặn khi crawl / Tiki đổi API | Request tuần tự, tự chờ và thử lại; tìm lại endpoint bằng F12 (§3.2); crawl sớm và lưu lên Drive |
 | Thiếu GPU | Colab / Kaggle; fp16; `max_len=128`; CRF + SVM vẫn chạy được trên CPU |
 | Gom nhóm khía cạnh ra chủ đề lẫn lộn | Lọc cụm hiếm (< 3 lần); người kiểm tra 300 cụm phổ biến; cho phép sửa tay bảng `aspect_topics.json` |

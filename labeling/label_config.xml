@@ -1,0 +1,47 @@
+<!--
+  Cấu hình Label Studio cho bài toán trích xuất bộ ba ý kiến (ASTE) – PROJECT_PLAN.md §5.1.
+
+  KHÔNG đổi các tên name="span", name="skip", name="text":
+  labeling/ls_common.py, agreement.py, ls_to_dataset.py đọc kết quả export theo đúng các tên này.
+
+  Cách gán một câu:
+    1. Đọc cả câu.
+    2. Bấm phím nhãn rồi bôi đen cụm từ:
+         a = ASPECT (khía cạnh)   p = OP_POS (ý kiến tích cực)
+         u = OP_NEU (trung lập)   n = OP_NEG (ý kiến tiêu cực)
+    3. Nối quan hệ: bấm vào cụm khía cạnh → bấm nút "Create Relation" (hoặc Alt+R)
+       → bấm vào cụm ý kiến nói về nó. Mỗi mũi tên = 1 bộ ba.
+    4. Ý kiến không nói rõ khen/chê cái gì (khía cạnh ẩn): bôi nhưng KHÔNG nối.
+    5. Spam / vô nghĩa: tích ô Spam, không cần bôi gì.
+    6. Submit (Ctrl+Enter).
+
+  Khi export: chọn JSON (KHÔNG chọn JSON-MIN vì sẽ mất quan hệ).
+-->
+<View>
+  <Style>
+    .lsf-main-content .htx-text { font-size: 17px; line-height: 2.1; }
+    .ctx { color: #808089; font-size: 13px; }
+  </Style>
+
+  <View className="ctx">
+    <Header value="Sản phẩm: $product_name" size="6"/>
+    <Header value="Ngành: $category · Đánh giá gốc: $rating sao" size="6"/>
+  </View>
+
+  <Labels name="span" toName="text" showInline="true">
+    <Label value="ASPECT" background="#4C9AFF" hotkey="a" hint="Khía cạnh: đối tượng được nhận xét (áo, chất vải, pin, giao hàng, shop...)"/>
+    <Label value="OP_POS" background="#36B37E" hotkey="p" hint="Ý kiến tích cực, gồm cả từ mức độ đi kèm (rất đẹp, giao nhanh)"/>
+    <Label value="OP_NEU" background="#FFAB00" hotkey="u" hint="Ý kiến trung lập (tạm được, bình thường)"/>
+    <Label value="OP_NEG" background="#FF5630" hotkey="n" hint="Ý kiến tiêu cực, gồm cả từ phủ định (không bền, mỏng quá)"/>
+  </Labels>
+
+  <Text name="text" value="$content" granularity="word"/>
+
+  <Relations>
+    <Relation value="có_ý_kiến"/>
+  </Relations>
+
+  <Choices name="skip" toName="text" choice="single" showInline="true">
+    <Choice value="Spam / vô nghĩa (loại bỏ)"/>
+  </Choices>
+</View>
