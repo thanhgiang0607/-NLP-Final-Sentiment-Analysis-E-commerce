@@ -110,7 +110,7 @@ python3 src/crawler/tiki_crawler.py --export-csv
   ```bash
   python3 labeling/preannotate.py --input data/raw/tiki_reviews.csv --n 20 --out data/processed/preannotated_20.json
   ```
-- [ ] **Import thử** `preannotated_20.json` vào project của Phúc → mở từng câu thấy cụm từ đã bôi màu và mũi tên sẵn → sửa thử 1 câu, Submit, export JSON, chạy `parse_result()` trong `ls_common.py` đọc lại được.
+- [ ] **Import thử** `preannotated_20.json` vào project tự tạo trên máy mình (Label Studio của Dũng, dán đúng `labeling/label_config.xml` như Phúc) → mở từng câu thấy cụm từ đã bôi màu và mũi tên sẵn → sửa thử 1 câu, Submit, export JSON, chạy `parse_result()` trong `ls_common.py` đọc lại được.
 
 **Xong khi:** 20 câu hiện gợi ý đúng trong Label Studio; số liệu sơ bộ: trung bình mấy cụm/câu, bao nhiêu % câu không có gợi ý nào.
 
