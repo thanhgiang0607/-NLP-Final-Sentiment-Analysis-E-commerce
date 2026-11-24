@@ -1,6 +1,7 @@
 # Guideline gán nhãn ASTE — bản nháp đầu tiên (rút ra từ 8 câu gán thử)
 
 > Ví dụ đánh dấu **[thật]** lấy từ dữ liệu Tiki, **[tự đặt]** lấy từ kế hoạch.
+
 ## 1. Mục tiêu
 
 Với mỗi bình luận, rút ra các **bộ ba** `(cụm khía cạnh, cụm ý kiến, cảm xúc)`.
@@ -39,7 +40,7 @@ Ví dụ [thật]: *"Hàng ổn đóng gói khá cẩn thận, nhưng dịch v�
 |---|---|---|
 | `ASPECT` | Đối tượng được nhận xét | `thời gian giao hàng`, `đóng gói`, `Giao hàng`, `dịch vụ ship`, `giá cả` |
 | `OP_POS` | Ý kiến tích cực | `khá cẩn thận`, `xài tốt`, `cứng cáp` |
-| `OP_NEU` | Đánh giá mức trung bình ("tạm", "bình thường") | *(chưa có ví dụ thật, cần tìm ở pilot)* |
+| `OP_NEU` | Đánh giá mức trung bình ("tạm", "bình thường") | `tạm được` trong *"Hàng dùng tạm được"* (14195254), `bình thường` trong *"Sản phẩm bình thường"* (12862034) |
 | `OP_NEG` | Ý kiến tiêu cực | `quá lâu`, `hơi chán`, `Dễ bị thấm nước` |
 
 ## 5. Quy tắc ranh giới cụm từ
@@ -76,7 +77,7 @@ Ví dụ [thật]: *"Hàng ổn đóng gói khá cẩn thận, nhưng dịch v�
 | **Mong muốn** | Không bôi | *"Mong shop giao nhanh hơn"* [tự đặt] |
 | **Mỉa mai** | Gán theo ý thật (tiêu cực) | *"Giao nhanh thật, 2 tuần mới tới"* [tự đặt] |
 | **Phủ định** | Từ phủ định nằm **trong** cụm ý kiến | `không đảm bảo hàng mới` [thật] |
-| **Spam / quảng cáo** | Tích ô Spam, không bôi | *"AE săn sale qua mình nhé"* [thật] |
+| **Spam / quảng cáo** | Tích ô Spam, không bôi | *"Săn sale nó phải như này. AE qua nhóm mình săn sale mình trả công cao nhé"* (20223857) [thật]. Review vừa quảng cáo vừa có ý kiến thật: xem câu hỏi mở số 4 |
 | **Tên người** | Đã được ẩn thành `<NAME>`, không bôi | `<NAME>` [thật] |
 
 ## 8. Câu hỏi còn mở (đem ra bàn ở buổi pilot tuần 2)
@@ -100,11 +101,13 @@ Hai chỗ đã tạm chốt nên không còn là câu hỏi mở: `dịch vụ s
 |---|---|---|
 | 18418965 | Dễ sử dụng nhưng thời gian giao hàng quá lâu. Shop đóng gói cẩn thận | (∅, Dễ sử dụng, +) · (thời gian giao hàng, quá lâu, −) · (đóng gói, cẩn thận, +) |
 | 16770197 | Hàng ổn đóng gói khá cẩn thận, nhưng dịch vụ ship bên tiki hơi chán | (Hàng, ổn, +) · (đóng gói, khá cẩn thận, +) · (dịch vụ ship, hơi chán, −) |
-| 20068874 | Không có màng nilon cho hộp sản phẩm. Dễ bị thấm nước và không đảm bảo hàng mới. | (hộp sản phẩm, Không có màng nilon, −) · (∅, Dễ bị thấm nước, −) · (∅, không đảm bảo hàng mới, −) |
-| 20190530 | Giao hàng đúng như thời gian để xuất, hàng đóng gói cẩn thận, ... giá cả trả góp cũng tốt | 5 bộ ba, đều tích cực |
+| 20068874 | Không có màng nilon cho hộp sản phẩm. Dễ bị thấm nước và không đảm bảo hàng mới. | (hộp sản phẩm, Không có màng nilon, −) · (∅, Dễ bị thấm nước, −) · (∅, không đảm bảo hàng mới, −). Chờ câu hỏi mở 2 và 3 |
+| 20190530 | Giao hàng đúng như thời gian để xuất, hàng đóng gói cẩn thận, hàng đúng như mô tả, nhìn sản phẩm đúng cũng hãng nha, giá cả trả góp cũng tốt | (Giao hàng, đúng như thời gian để xuất, +) · (đóng gói, cẩn thận, +) · (hàng, đúng như mô tả, +) · (sản phẩm, đúng cũng hãng, +) · (giá cả trả góp, cũng tốt, +). Ranh giới ý kiến chờ câu hỏi mở 5 |
 | 16874154 | Dt xài tốt, đẹp, cứng cáp, sẽ ủng hộ shop nữa | (Dt, xài tốt, +) · (Dt, đẹp, +) · (Dt, cứng cáp, +) |
-| 19778668 | Hàng đẹp, thử dùng thì ổn, nhưng đặt mua màu trắng giao màu đen | (Hàng, đẹp, +) · (Hàng, ổn, +) · (∅, đặt mua màu trắng giao màu đen, −) |
+| 19778668 | Hàng đẹp, thử dùng thì ổn, nhưng đặt mua màu trắng giao màu đen | (Hàng, đẹp, +) · (Hàng, ổn, +) · (∅, đặt mua màu trắng giao màu đen, −). Chờ câu hỏi mở 1 và 3 |
 | 11302991 | cho mình hỏi, ... có phải bản 365 ko? | không có bộ ba |
-| 20172079 | TỐP NHẬN HÀNG ĐẦU TIÊN... AE săn sale qua mình nhé | spam |
+| 20172079 | TỐP NHẬN HÀNG ĐẦU TIÊN... Bịp lắm nha... AE săn sale qua mình nhé | Tạm thời: spam. Nếu chốt đề xuất câu hỏi mở 4 thì đổi thành (∅, Bịp lắm, −) |
 
 Ký hiệu: `+` Tích cực, `−` Tiêu cực, `∅` khía cạnh ẩn.
+
+Câu gốc giữ nguyên chính tả ("để xuất", "cũng hãng"), vì Label Studio lưu nhãn theo vị trí ký tự. Sau buổi pilot, khi chốt các câu hỏi ở §8 thì sửa lại các dòng ghi "chờ câu hỏi mở" ở bảng này.
