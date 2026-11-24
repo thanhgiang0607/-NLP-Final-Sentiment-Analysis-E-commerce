@@ -93,10 +93,11 @@ python3 src/crawler/tiki_crawler.py --export-csv
 
 #### C – Dũng: Lexicon + pre-annotate
 
-- [ ] **`labeling/lexicon.json`** gồm 6 nhóm:
+- [ ] **`labeling/lexicon.json`** gồm 6 nhóm, cộng `not_aspect` (cụm chứa từ khía cạnh nhưng không phải khía cạnh, `preannotate.py` phải bỏ qua):
   ```json
   {
     "aspect":   ["chất vải", "pin", "màn hình", "giao hàng", "shipper", "đóng gói", "giá", "shop", "..."],
+    "not_aspect": ["mua hàng", "nhận hàng", "đơn hàng", "mở rộng", "..."],
     "op_pos":   ["đẹp", "tốt", "nhanh", "chắc chắn", "đáng tiền", "..."],
     "op_neg":   ["xấu", "mỏng", "chậm", "lỗi", "móp méo", "..."],
     "op_neu":   ["tạm", "tạm được", "bình thường", "..."],
@@ -105,7 +106,7 @@ python3 src/crawler/tiki_crawler.py --export-csv
   }
   ```
   Điểm xuất phát: danh sách từ trong `app/demo_backend.py` (đã có ~70 khía cạnh, ~150 từ ý kiến). Bổ sung từ khoá cho các ngành mới: sách (nội dung, bìa, giấy), đồ ăn (vị, hạn sử dụng), xe cộ, giày dép, túi ví. Viết chữ thường, có dấu.
-- [ ] **`labeling/preannotate.py`**: đọc CSV (`review_id`, `content`, ...) → tìm cụm từ theo lexicon (ưu tiên cụm dài nhất; ghép từ phủ định / mức độ vào cụm ý kiến; phủ định thì đảo cảm xúc) → nối mỗi ý kiến với khía cạnh gần nhất trong cùng mệnh đề (tách mệnh đề theo `. ! ? ;` và "nhưng") → xuất JSON task Label Studio có `predictions`. Dùng `spans_to_result()` trong `labeling/ls_common.py` để tạo đúng định dạng (cụm từ + relation).
+- [ ] **`labeling/preannotate.py`**: đọc CSV (`review_id`, `content`, ...) → tìm cụm từ theo lexicon (ưu tiên cụm dài nhất **trên tất cả các nhóm cùng lúc**, ví dụ `không hài lòng` thắng `không` + `hài lòng`, `chất lượng` thắng `chất`; bỏ qua cụm trong `not_aspect`; ghép từ phủ định / mức độ vào cụm ý kiến; phủ định thì đảo cảm xúc) → nối mỗi ý kiến với khía cạnh gần nhất trong cùng mệnh đề (tách mệnh đề theo `. ! ? ;` và "nhưng") → xuất JSON task Label Studio có `predictions`. Dùng `spans_to_result()` trong `labeling/ls_common.py` để tạo đúng định dạng (cụm từ + relation).
   ```bash
   python3 labeling/preannotate.py --input data/raw/tiki_reviews.csv --n 20 --out data/processed/preannotated_20.json
   ```
