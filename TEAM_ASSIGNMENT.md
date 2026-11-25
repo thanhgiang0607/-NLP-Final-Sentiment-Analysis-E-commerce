@@ -32,10 +32,10 @@ Bốn việc **chạy song song**, không ai phải chờ ai. Ai cần câu mẫ
 
 | Người | Việc làm | Kết quả cuối tuần | Trạng thái |
 |---|---|---|---|
-| **A** Giang | Crawl review Tiki, xuất CSV, đưa lên Drive | `tiki_reviews.csv`, `tiki_products.jsonl` trên Drive | ✅ Crawl xong · ⏳ còn upload Drive |
-| **B** Phúc | Cài Label Studio, tạo project bằng `label_config.xml`; gán thử 5 câu; export JSON kiểm tra quan hệ; viết `guideline.md` v0 | Label Studio chạy ổn, file export có quan hệ, `guideline.md` v0 | 🔄 Đang làm (`label_config.xml` đã có sẵn) |
-| **C** Dũng | Viết `lexicon.json` + `preannotate.py`; import thử 20 câu có gợi ý | 20 câu hiện sẵn cụm từ + mũi tên trong Label Studio | ⬜ Chưa làm |
-| **D** Hằng | Môi trường GPU Kaggle/Colab; chạy thử ViSoBERT + PhoBERT; `teencode_dict.json` v0 | `notebooks/00_test_dl_env.ipynb` chạy thông, `teencode_dict.json` v0 | ⬜ Chưa làm |
+| **A** Giang | Crawl review Tiki, xuất CSV, đưa lên Drive | `tiki_reviews.csv`, `tiki_products.jsonl` trên Drive | ✅ Xong (crawl 23/11, đã upload Drive) |
+| **B** Phúc | Cài Label Studio, tạo project bằng `label_config.xml`; gán thử 5 câu; export JSON kiểm tra quan hệ; viết `guideline.md` v0 | Label Studio chạy ổn, file export có quan hệ, `guideline.md` v0 | ✅ Xong (PR #3) |
+| **C** Dũng | Viết `lexicon.json` + `preannotate.py`; import thử 20 câu có gợi ý | 20 câu hiện sẵn cụm từ + mũi tên trong Label Studio | ✅ Xong (PR #1, #5: 4,2 cụm/câu, 10% câu không có gợi ý) |
+| **D** Hằng | Môi trường GPU Kaggle/Colab; chạy thử ViSoBERT + PhoBERT; `teencode_dict.json` v0 | `notebooks/00_test_dl_env.ipynb` chạy thông, `teencode_dict.json` v0 | ✅ Xong (PR #4, #6) |
 
 #### A – Giang: Crawl dữ liệu
 
@@ -53,7 +53,7 @@ Bốn việc **chạy song song**, không ai phải chờ ai. Ai cần câu mẫ
 Ngành rất ít câu đủ chuẩn: Đồ ăn (55), Điện thoại (74), Giày dép nữ (229). Khi chọn câu gán nhãn không chia đều theo ngành mà chia theo tỉ lệ, mỗi ngành tối thiểu ~30–50 câu (ngành thiếu thì lấy hết).
 
 **Còn lại:**
-- [ ] Upload `data/raw/tiki_reviews.csv` và `data/raw/tiki_products.jsonl` lên thư mục `raw/` trên Drive (§11), báo nhóm.
+- [x] Upload `data/raw/tiki_reviews.csv` và `data/raw/tiki_products.jsonl` lên thư mục `raw/` trên Drive (§11), báo nhóm.
 
 Lệnh đã dùng (macOS; Windows thay `python3` bằng `python`, bỏ `caffeinate -i`, thay `tee -a` bằng `Tee-Object -Append`):
 
@@ -64,12 +64,12 @@ python3 src/crawler/tiki_crawler.py --export-csv
 
 #### B – Phúc: Label Studio + guideline v0
 
-- [ ] **Cài và mở Label Studio**
+- [x] **Cài và mở Label Studio**
   ```bash
   pip install label-studio
   label-studio start          # mở http://localhost:8080, tạo tài khoản
   ```
-- [ ] **Tạo file 5 câu thử** (ở thư mục gốc dự án, cần `tiki_reviews.csv` trong `data/raw/`):
+- [x] **Tạo file 5 câu thử** (ở thư mục gốc dự án, cần `tiki_reviews.csv` trong `data/raw/`):
   ```bash
   python3 -c "
   import pandas as pd
@@ -79,21 +79,21 @@ python3 src/crawler/tiki_crawler.py --export-csv
       'data/processed/ls_test_5.json', orient='records', force_ascii=False, indent=2)
   "
   ```
-- [ ] **Tạo project**: Create Project → *Labeling Setup* → *Code* → dán **toàn bộ** `labeling/label_config.xml` → *Data Import* chọn `ls_test_5.json` → Save.
+- [x] **Tạo project**: Create Project → *Labeling Setup* → *Code* → dán **toàn bộ** `labeling/label_config.xml` → *Data Import* chọn `ls_test_5.json` → Save.
   Không đổi các tên `span`, `skip`, `text` trong config (script đọc export dựa vào các tên này).
-- [ ] **Gán thử 5 câu**, cố tình có đủ các trường hợp: ít nhất 1 mũi tên quan hệ, 1 ý kiến **không nối** (khía cạnh ẩn), 1 câu tích **Spam**.
+- [x] **Gán thử 5 câu**, cố tình có đủ các trường hợp: ít nhất 1 mũi tên quan hệ, 1 ý kiến **không nối** (khía cạnh ẩn), 1 câu tích **Spam**.
   Thao tác: phím `a`/`p`/`u`/`n` → bôi cụm từ → bấm cụm khía cạnh → *Create Relation* (Alt+R) → bấm cụm ý kiến → Submit.
-- [ ] **Export → JSON** (không chọn JSON-MIN). Mở file, kiểm tra:
+- [x] **Export → JSON** (không chọn JSON-MIN). Mở file, kiểm tra:
   - có các mục `"type": "labels"` với `"from_name": "span"` (cụm từ),
   - có các mục `"type": "relation"` (mũi tên) → **đạt**.
   - Lưu file export vào Drive `exports/w1_test/` để Dũng và Hằng dùng thử.
-- [ ] **Viết `labeling/guideline.md` v0** dựa trên §2 của kế hoạch, gồm: định nghĩa khía cạnh / ý kiến / cảm xúc; ranh giới cụm từ (từ phủ định và từ mức độ nằm **trong** cụm ý kiến); bảng trường hợp đặc biệt (khía cạnh ẩn, 1 ý kiến nhiều khía cạnh, quan hệ xa, mỉa mai, câu hỏi, mô tả khách quan, spam); mỗi trường hợp 1–2 ví dụ lấy từ dữ liệu thật. Bản v0 sẽ được sửa sau pilot tuần 2.
+- [x] **Viết `labeling/guideline.md` v0** dựa trên §2 của kế hoạch, gồm: định nghĩa khía cạnh / ý kiến / cảm xúc; ranh giới cụm từ (từ phủ định và từ mức độ nằm **trong** cụm ý kiến); bảng trường hợp đặc biệt (khía cạnh ẩn, 1 ý kiến nhiều khía cạnh, quan hệ xa, mỉa mai, câu hỏi, mô tả khách quan, spam); mỗi trường hợp 1–2 ví dụ lấy từ dữ liệu thật. Bản v0 sẽ được sửa sau pilot tuần 2.
 
-**Xong khi:** cả nhóm mở được project, file export có `relation`, `guideline.md` v0 đã đẩy lên git.
+**Xong khi:** mỗi người tự tạo được project trên máy mình bằng `label_config.xml` (§11), file export có `relation`, `guideline.md` v0 đã đẩy lên git.
 
 #### C – Dũng: Lexicon + pre-annotate
 
-- [ ] **`labeling/lexicon.json`** gồm 6 nhóm, cộng `not_aspect` (cụm chứa từ khía cạnh nhưng không phải khía cạnh, `preannotate.py` phải bỏ qua):
+- [x] **`labeling/lexicon.json`** gồm 6 nhóm, cộng `not_aspect` (cụm chứa từ khía cạnh nhưng không phải khía cạnh, `preannotate.py` phải bỏ qua):
   ```json
   {
     "aspect":   ["chất vải", "pin", "màn hình", "giao hàng", "shipper", "đóng gói", "giá", "shop", "..."],
@@ -106,17 +106,17 @@ python3 src/crawler/tiki_crawler.py --export-csv
   }
   ```
   Điểm xuất phát: danh sách từ trong `app/demo_backend.py` (đã có ~70 khía cạnh, ~150 từ ý kiến). Bổ sung từ khoá cho các ngành mới: sách (nội dung, bìa, giấy), đồ ăn (vị, hạn sử dụng), xe cộ, giày dép, túi ví. Viết chữ thường, có dấu.
-- [ ] **`labeling/preannotate.py`**: đọc CSV (`review_id`, `content`, ...) → tìm cụm từ theo lexicon (ưu tiên cụm dài nhất **trên tất cả các nhóm cùng lúc**, ví dụ `không hài lòng` thắng `không` + `hài lòng`, `chất lượng` thắng `chất`; bỏ qua cụm trong `not_aspect`; ghép từ phủ định / mức độ vào cụm ý kiến; phủ định thì đảo cảm xúc) → nối mỗi ý kiến với khía cạnh gần nhất trong cùng mệnh đề (tách mệnh đề theo `. ! ? ;` và "nhưng") → xuất JSON task Label Studio có `predictions`. Dùng `spans_to_result()` trong `labeling/ls_common.py` để tạo đúng định dạng (cụm từ + relation).
+- [x] **`labeling/preannotate.py`**: đọc CSV (`review_id`, `content`, ...) → tìm cụm từ theo lexicon (ưu tiên cụm dài nhất **trên tất cả các nhóm cùng lúc**, ví dụ `không hài lòng` thắng `không` + `hài lòng`, `chất lượng` thắng `chất`; bỏ qua cụm trong `not_aspect`; ghép từ phủ định / mức độ vào cụm ý kiến; phủ định thì đảo cảm xúc) → nối mỗi ý kiến với khía cạnh gần nhất trong cùng mệnh đề (tách mệnh đề theo `. ! ? ;` và "nhưng") → xuất JSON task Label Studio có `predictions`. Dùng `spans_to_result()` trong `labeling/ls_common.py` để tạo đúng định dạng (cụm từ + relation).
   ```bash
   python3 labeling/preannotate.py --input data/raw/tiki_reviews.csv --n 20 --out data/processed/preannotated_20.json
   ```
-- [ ] **Import thử** `preannotated_20.json` vào project tự tạo trên máy mình (Label Studio của Dũng, dán đúng `labeling/label_config.xml` như Phúc) → mở từng câu thấy cụm từ đã bôi màu và mũi tên sẵn → sửa thử 1 câu, Submit, export JSON, chạy `parse_result()` trong `ls_common.py` đọc lại được.
+- [x] **Import thử** `preannotated_20.json` vào project tự tạo trên máy mình (Label Studio của Dũng, dán đúng `labeling/label_config.xml` như Phúc) → mở từng câu thấy cụm từ đã bôi màu và mũi tên sẵn → sửa thử 1 câu, Submit, export JSON, chạy `parse_result()` trong `ls_common.py` đọc lại được.
 
 **Xong khi:** 20 câu hiện gợi ý đúng trong Label Studio; số liệu sơ bộ: trung bình mấy cụm/câu, bao nhiêu % câu không có gợi ý nào.
 
 #### D – Hằng: Môi trường deep learning
 
-- [ ] **Tạo notebook** `notebooks/00_test_dl_env.ipynb` trên Kaggle (GPU T4/P100) hoặc Colab:
+- [x] **Tạo notebook** `notebooks/00_test_dl_env.ipynb` trên Kaggle (GPU T4/P100) hoặc Colab:
   ```python
   !pip -q install transformers torch
   from transformers import AutoTokenizer, AutoModelForTokenClassification
@@ -127,24 +127,146 @@ python3 src/crawler/tiki_crawler.py --export-csv
       print(name, tok.convert_ids_to_tokens(enc["input_ids"][0]))
       print(model(**enc).logits.shape)   # mong đợi: [1, số_token, 9]
   ```
-- [ ] **Kiểm tra và ghi lại** trong notebook:
+- [x] **Kiểm tra và ghi lại** trong notebook:
   - Tokenizer của ViSoBERT nhận câu có dấu / teencode như thế nào (tách subword ra sao).
   - **PhoBERT cần câu đã tách từ** (`chất_vải`): thử thêm `pyvi` hoặc `underthesea` để tách từ trước khi đưa vào, ghi nhận khác biệt.
   - Kích thước đầu ra `[1, số_token, 9]` cho cả 2 mô hình, không lỗi thiếu thư viện / tràn bộ nhớ.
   - Thời gian chạy 1 batch 32 câu trên GPU (để ước tính thời gian train tuần 6).
-- [ ] **`src/preprocessing/teencode_dict.json` v0**: ~100–200 cặp hay gặp trong dữ liệu (`"ko": "không"`, `"sp": "sản phẩm"`, `"dc": "được"`, `"ship": "giao hàng"`...). Tìm bằng cách đếm các từ ngắn hay xuất hiện trong `tiki_reviews.csv`. Dùng **cho mô hình**, không sửa văn bản gốc đem đi gán nhãn (§6).
+- [x] **`src/preprocessing/teencode_dict.json` v0**: ~100–200 cặp hay gặp trong dữ liệu (`"ko": "không"`, `"sp": "sản phẩm"`, `"dc": "được"`, `"ship": "giao hàng"`...). Tìm bằng cách đếm các từ ngắn hay xuất hiện trong `tiki_reviews.csv`. Dùng **cho mô hình**, không sửa văn bản gốc đem đi gán nhãn (§6).
 
 **Xong khi:** notebook chạy thông từ đầu đến cuối cho cả 2 mô hình, đẩy lên git; `teencode_dict.json` v0 đã đẩy lên git.
 
-### Tuần 2: EDA, tiền xử lý lớp 1, gán thử 100 câu, chốt luật gán nhãn
+### Tuần 2: Làm sạch dữ liệu, gán thử 100 câu (pilot), chốt luật gán nhãn
 
-| Người | Việc làm | Kết quả cuối tuần |
+Mỗi người **làm tiếp đúng mảng của mình ở tuần 1**:
+
+| Người | Tuần 1 đã làm | Tuần 2 làm tiếp |
 |---|---|---|
-| **A** | EDA dữ liệu thô (§4): rating, độ dài, % review trống, theo ngành hàng; **top danh từ / tính từ** gửi C bổ sung từ điển. Viết `cleaner.py` (**tiền xử lý lớp 1**: làm sạch, Unicode, ẩn tên / số điện thoại, lọc spam, lọc 10–80 từ) | `02_eda.ipynb`, văn bản sạch **cố định** để gán nhãn |
-| **B** | Tổ chức **pilot**: cả 4 người cùng gán **cùng 100 câu**; chạy `agreement.py`; chủ trì buổi thảo luận; cập nhật guideline (ranh giới cụm từ, khía cạnh ẩn, khi nào Trung lập) | `guideline.md` v1, schema nhãn đã chốt |
-| **C** | Viết `split_data.py`: chọn và **đóng băng** 600 câu test + 400 câu val (phân tầng theo ngành hàng và rating, lấy thêm câu 1–3 sao); chạy `preannotate.py` cho tập test; chạy `make_tasks.py` cho tuần 3 | Danh sách ID test/val cố định, file import tuần 3 trên Drive |
-| **D** | Viết `tokenizer.py`: tách từ giữ vị trí ký tự, đổi cụm từ ↔ nhãn BIO, căn chỉnh nhãn với token của ViSoBERT và PhoBERT; **test**: cụm từ → BIO → cụm từ phải ra đúng như cũ | Hàm căn chỉnh chạy đúng trên dữ liệu pilot |
-| **Cả nhóm** | **Gán pilot 100 câu** (mỗi người ~2,8 giờ) + 1 buổi thảo luận ~1,5 giờ | |
+| **A** Giang | Crawl → `tiki_reviews.csv` | Làm sạch dữ liệu đó (`cleaner.py`) + EDA |
+| **B** Phúc | Label Studio + `guideline.md` v0 (6 câu hỏi mở) | Tổ chức pilot, đo đồng thuận, chốt 6 câu hỏi → `guideline.md` v1 |
+| **C** Dũng | `lexicon.json` + `preannotate.py` | Lexicon v2, chọn câu pilot / test / val (`split_data.py`), tạo file import |
+| **D** Hằng | Notebook ViSoBERT / PhoBERT + `teencode_dict.json` v0 | `tokenizer.py` (cụm từ ↔ BIO ↔ sub-token) + `teencode_dict.json` v1 |
+| **Cả nhóm** | | Gán **cùng 100 câu pilot** (~2,8 giờ/người) + họp thảo luận ~1,5 giờ |
+
+**Thứ tự trong tuần** (việc của Giang phải xong trước để có văn bản cố định đem đi gán):
+
+| Ngày | Giang | Phúc | Dũng | Hằng |
+|---|---|---|---|---|
+| **1–2** | `cleaner.py` → `clean.csv` lên Drive | Nhắc cả nhóm cài Label Studio, tạo project thử | Lexicon v2 | `tokenizer.py` phần cụm từ ↔ BIO |
+| **3** | EDA | | `split_data.py` → file pilot lên Drive **tối ngày 3** | `tokenizer.py` phần sub-token |
+| **4–5** | **Gán pilot** · EDA | **Gán pilot** | **Gán pilot** | **Gán pilot** · teencode v1 |
+| **5 tối** | Export lên Drive | Export lên Drive | Export lên Drive | Export lên Drive |
+| **6** | | Chạy `agreement.py`, gửi câu lệch · **chủ trì họp** | | Test `tokenizer.py` trên export pilot |
+| **7** | PR EDA | PR `guideline.md` v1 | Cập nhật lexicon theo guideline v1 → file import tuần 3 lên Drive | PR `tokenizer.py` |
+
+| Người | Kết quả cuối tuần | Trạng thái |
+|---|---|---|
+| **A** Giang | `cleaner.py`, `clean.csv` trên Drive, `02_eda.ipynb` | ⬜ Chưa làm |
+| **B** Phúc | Kết quả đồng thuận pilot, `guideline.md` v1 | ⬜ Chưa làm |
+| **C** Dũng | Lexicon v2, ID pilot / test / val đóng băng trên git, file import tuần 3 trên Drive | ⬜ Chưa làm |
+| **D** Hằng | `tokenizer.py` có test, `teencode_dict.json` v1 | ⬜ Chưa làm |
+
+#### A – Giang: Làm sạch dữ liệu (lớp 1) + EDA
+
+- [ ] **`src/preprocessing/cleaner.py`** (§6 lớp 1). Văn bản ra ở bước này là văn bản **cố định**: đem đi gán nhãn rồi thì không sửa nữa.
+  ```bash
+  python3 src/preprocessing/cleaner.py --input data/raw/tiki_reviews.csv --out data/processed/clean.csv
+  ```
+  - Hàm `clean_text(text) -> str` dùng lại được (app của Phúc dùng để làm sạch câu người dùng nhập).
+  - Bỏ HTML, URL; `\r\n` → `\n`; gộp khoảng trắng thừa.
+  - Unicode **NFC**; quy **một kiểu bỏ dấu**: `hoà` → `hòa`, `khoá` → `khóa`, `khoẻ` → `khỏe`, `thuỷ` → `thủy` (giống hàm `canon()` trong `preannotate.py` và cách viết trong `lexicon.json`).
+  - Ẩn thông tin cá nhân: số điện thoại, email → `<PHONE>`; tên người → `<NAME>` (đúng ký hiệu trong `guideline.md` §7). Tên khó bắt hết: dùng mẫu kiểu `mình là …`, `tên …`, chữ ký viết hoa cuối câu (vd *"NGỌC NAM ❤️"* ở review 20172079), rồi tự xem ngẫu nhiên 200 câu đầu ra.
+  - Bỏ trùng nội dung (~9.500 câu kiểu "Sản phẩm tốt"), giữ 1 câu.
+  - Đánh dấu spam quảng cáo thuần (vd *"AE qua nhóm mình săn sale…"*, 20223857). Câu vừa quảng cáo vừa có ý kiến thật thì **giữ lại** (đề xuất câu hỏi mở số 4).
+  - Lọc 10–80 từ.
+  - Cột đầu ra: `review_id, product_id, product_name, category, rating, content, n_words`. In thống kê: bao nhiêu câu bị bỏ ở mỗi bước.
+- [ ] **Đưa `clean.csv` lên Drive `raw/`** và báo nhóm. **Hạn: hết ngày 2**, vì Dũng cần file này để chọn câu pilot.
+- [ ] **`notebooks/02_eda.ipynb`** (§4, trên dữ liệu thô và dữ liệu sạch):
+  - phân bố rating, độ dài, % review trống, theo ngành hàng, theo thời gian;
+  - trùng lặp, spam, tần suất emoji;
+  - đếm **từ ngắn không dấu hay gặp** → gửi Hằng làm teencode v1;
+  - **top danh từ / tính từ** theo ngành (POS bằng `underthesea`), đánh dấu từ nào **chưa có trong `lexicon.json`** → gửi Dũng.
+- [ ] **Gán pilot 100 câu** (ngày 4–5), export `w2_A_pilot.json` lên Drive `exports/w2/`.
+
+**Xong khi:** `clean.csv` trên Drive trước ngày 3; `cleaner.py` + `02_eda.ipynb` đã merge; Dũng và Hằng đã nhận danh sách từ.
+
+#### B – Phúc: Pilot + guideline v1
+
+- [ ] **Ngày 1–2:** nhắc cả nhóm cài Label Studio và tạo project thử bằng `labeling/label_config.xml` (xem §11). Ai lỗi thì hỗ trợ trước ngày 4.
+- [ ] **Ngày 4–5:** cả nhóm gán `w2_<người>_pilot.json`.
+  - Pilot **không có gợi ý**, để đo đúng mức hiểu guideline của từng người.
+  - Gán theo `guideline.md` v0. Câu nào phân vân thì ghi lại `review_id` + lý do.
+  - **Tối ngày 5:** mọi người export **JSON**, đổi tên đúng quy ước, đưa lên `Drive/exports/w2/`.
+- [ ] **Ngày 6:** đo độ đồng thuận:
+  ```bash
+  python3 labeling/agreement.py --exports labeling/exports/w2
+  ```
+  Gửi nhóm `w2_agreement.csv` (`triplet_f1`, `token_fleiss_kappa`) và `w2_disagreements.csv` **trước buổi họp**.
+- [ ] **Chủ trì buổi họp ~1,5 giờ:**
+  1. Đọc kết quả theo thứ tự `aspect_f1` → `opinion_f1` → `pair_f1` → `triplet_f1` để biết nhóm lệch ở bước nào.
+  2. Chốt **6 câu hỏi mở** ở `guideline.md` §8.
+  3. Xem ~15 câu lệch nhiều nhất và thống nhất đáp án.
+- [ ] **`labeling/guideline.md` v1** (PR `docs/phuc-guideline-v1`):
+  - đổi §8 từ "câu hỏi mở" thành **luật đã chốt**;
+  - sửa §7 và đáp án §9 cho khớp (các dòng "chờ câu hỏi mở");
+  - thêm ví dụ thật lấy từ pilot;
+  - ghi số đồng thuận pilot.
+
+**Xong khi:** có số `triplet_f1` của pilot; `guideline.md` v1 đã merge. Mục tiêu ≥ 0,7 là cho tập test; pilot thấp hơn cũng được, miễn là đã chốt luật cho các chỗ lệch.
+
+#### C – Dũng: Lexicon v2 + chọn câu + file import
+
+- [ ] **`labeling/lexicon.json` v2** (ngày 1–2):
+  - `lâu` đứng riêng đang bị bôi là chê ("Cầm lâu", "Đeo lâu") → đổi thành cụm `giao lâu`, `hơi lâu`, `lâu quá`...
+  - thêm `không có` vào `negation` ("không có mùi hôi" đang ra chê);
+  - bổ sung từ trong danh sách top danh từ / tính từ của Giang;
+  - mỗi lần sửa chạy lại `preannotate.py --n 200` và ghi số "% câu không có gợi ý".
+- [ ] **`labeling/split_data.py`** (ngày 3, cần `clean.csv` của Giang):
+  ```bash
+  python3 labeling/split_data.py --input data/processed/clean.csv --pilot 100 --test 600 --val 400 --out data/splits
+  ```
+  - Ra `data/splits/pilot_ids.txt`, `test_ids.txt`, `val_ids.txt` + bảng thống kê theo ngành × rating.
+  - **3 tập không trùng nhau**, cùng `--seed` thì ra giống hệt.
+  - Phân tầng theo ngành hàng + rating (§5.2): chia theo tỉ lệ, mỗi ngành tối thiểu ~30–50 câu (ngành thiếu thì lấy hết); **lấy thêm câu 1–3 sao**, ghi rõ tỉ lệ.
+  - Câu cùng 1 sản phẩm không nên dồn hết vào 1 tập.
+  - **Commit 3 file ID lên git** để đóng băng: file nhỏ, không chứa nội dung review, `data/splits/` không bị `.gitignore` chặn.
+- [ ] **File pilot** (tối ngày 3), không có gợi ý:
+  ```bash
+  # lấy 100 dòng theo pilot_ids.txt từ clean.csv → data/processed/pilot.csv, rồi:
+  python3 labeling/make_tasks.py --input data/processed/pilot.csv --phase w2 --pilot
+  ```
+  Đưa 4 file `w2_*_pilot.json` lên `Drive/tasks/w2/`.
+- [ ] **Thêm `--ids` cho `preannotate.py`** (bôi gợi ý cho đúng danh sách ID thay vì lấy ngẫu nhiên `--n`).
+- [ ] **Ngày 7:** cập nhật lexicon theo luật mới của guideline v1, rồi tạo file import tuần 3:
+  ```bash
+  python3 labeling/preannotate.py --input data/processed/clean.csv --ids data/splits/test_ids.txt --out data/processed/test_preannotated.json
+  python3 labeling/make_tasks.py --input data/processed/test_preannotated.json --phase w3 --quota A=120 B=180 C=150 D=150 --cross-n 45
+  ```
+  Đưa file và `w3_manifest.csv` lên `Drive/tasks/w3/` **trước ngày đầu tuần 3**.
+- [ ] **Gán pilot 100 câu.**
+
+**Xong khi:** 3 file ID đã trên git; file pilot lên Drive đúng hạn ngày 3; file tuần 3 lên Drive trước tuần 3.
+
+#### D – Hằng: `tokenizer.py` + teencode v1
+
+- [ ] **`src/preprocessing/tokenizer.py`** (§6 lớp 2):
+  - **Tách từ:** dùng lại `words()` trong `labeling/ls_common.py` (cùng cách tách với `agreement.py`, để BIO 2 bên giống nhau).
+  - **Cụm từ ↔ BIO:** `spans_to_bio(text, spans)` và `bio_to_spans(text, tags)`.
+  - **ViSoBERT:** `align_visobert(text, spans, tok)` dùng `return_offsets_mapping=True`; nhãn gán cho sub-token đầu của mỗi từ, các sub-token còn lại và `<s>`, `</s>` = `-100`.
+  - **PhoBERT:** `align_phobert(text, spans, tok)` tách từ bằng pyvi (theo notebook 00). Pyvi thêm khoảng trắng trước dấu câu và nối bằng `_`, nên phải **căn lại về vị trí ký tự gốc**.
+  - **Chuẩn hoá từng từ** cho CRF / BiLSTM: `normalize_word(w, prev)`: chữ thường, teencode, `đẹppppp` → `đẹp`, emoji → `emo_pos` / `emo_neg`. **Không tra teencode khi từ đứng sau một số** (`5 kg`, `500 k`).
+- [ ] **Test:** cụm từ → BIO → cụm từ phải ra **đúng như cũ**.
+  - Ngày 3: thử trên `data/processed/preannotated_20.json` (gợi ý của Dũng), chưa cần chờ pilot.
+  - Ngày 6: chạy lại trên 4 file export pilot.
+  - In số câu khớp 100%, liệt kê câu lệch.
+- [ ] **`src/preprocessing/teencode_dict.json` v1** (PR `data/hang-teencode-v1`), dùng danh sách từ ngắn của Giang hoặc ô phụ lục trong notebook 00:
+  - thêm `vs` → với, `tui` → tôi, `rat` → rất...;
+  - bỏ 12 khoá không xuất hiện lần nào (`k0`, `dzậy`, `jz`, `ghang`, `vchuyen`, `authentic`, `dthoai`, `cluong`, `oge`, `thôy`, `lmj`, `camon`);
+  - cân nhắc bỏ `hông` ("bên hông").
+- [ ] **Chạy lại notebook 00** trên Kaggle (*Run All*) để output khớp code đã sửa, rồi commit.
+- [ ] **Gán pilot 100 câu.**
+
+**Xong khi:** `tokenizer.py` đã merge, test khớp 100% trên export pilot; `teencode_dict.json` v1 đã merge.
 
 ---
 
